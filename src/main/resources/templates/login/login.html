@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - SGIL</title>
+<link rel="stylesheet" th:href="@{/css/login.css}">
+
+</head>
+<body>
+  <div class="login-layout">
+    <!-- Columna izquierda: 70% Carrusel -->
+    <section class="hero">
+      <!-- Título sobrepuesto (cambia con cada imagen) -->
+      <div class="lab-title" id="labTitle">Laboratorio 1</div>
+
+      <!-- Slides (reemplaza src por tus rutas) -->
+      <div class="slides">
+        <img th:src="@{/img/labs/uteq1.jpeg}" alt="Laboratorio 1" class="slide active" data-title="Base de Datos">
+        <img th:src="@{/img/labs/uteq2.jpeg}" alt="Laboratorio 2" class="slide" data-title="Programación">
+        <img th:src="@{/img/labs/uteq3.jpeg}" alt="Laboratorio 3" class="slide" data-title="Estadística">
+        <img th:src="@{/img/labs/uteq4.jpeg}" alt="Laboratorio 4" class="slide" data-title="Estructura de datos">
+      </div>
+
+      <!-- Degradado para legibilidad del título -->
+      <div class="hero-gradient"></div>
+    </section>
+
+    <!-- Columna derecha: 30% Login -->
+    <section class="login-panel">
+      <div class="login-card">
+        <div class="logo-top">
+          
+          <img th:src="@{/img/labu1.png}" alt="SGIL" onerror="this.style.display='none'">
+        </div>
+        <h3 class="login-title">Inicio de sesión</h3>
+
+        <form th:action="@{/login}" method="post" id="loginForm" novalidate>
+          <div class="form-field">
+            <label class="form-label" for="nombreUsuario">Nombre de Usuario</label>
+            <input class="form-input" id="nombreUsuario" name="nombreUsuario" type="text" required autocomplete="username"/>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label" for="clave">Contraseña</label>
+            <input class="form-input" id="clave" name="clave" type="password" required autocomplete="current-password"/>
+            <button type="button" class="toggle-password" id="togglePwd">Mostrar</button>
+            <div class="caps-msg" id="capsMsg">Bloq Mayús activado</div>
+          </div>
+
+          <div class="helper-row">
+            <label><input type="checkbox" id="rememberMe"> Recordarme</label>
+            <a class="link" href="#" onclick="alert('Recuperación pendiente de implementar');return false;">¿Olvidaste tu contraseña?</a>
+          </div>
+
+          <button class="btn-login" id="btnSubmit" type="submit" disabled>
+            <span class="spinner" id="spinner" style="display:none;"></span>
+            Iniciar
+          </button>
+
+          <div class="register-line">
+           
+          </div>
+
+          <!-- Mensajes de error -->
+          <div class="error-msg" th:if="${param.error}">
+            <span th:switch="${param.error[0]}">
+              <span th:case="'credenciales'">Usuario o contraseña incorrectos.</span>
+              <span th:case="'rol'">Tu rol no tiene acceso a esta aplicación.</span>
+              <span th:case="*">No se pudo iniciar sesión. Intenta nuevamente.</span>
+            </span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ====== Carrusel simple ======
+    const slides = document.querySelectorAll('.slide');
+    const titleEl = document.getElementById('labTitle');
+    let idx = 0;
+    function showSlide(n){
+      slides.forEach((img,i)=>{
+        img.classList.toggle('active', i===n);
+      });
+      const t = slides[n]?.dataset?.title || '';
+      if (titleEl) titleEl.textContent = t;
+    }
+    setInterval(()=>{
+      idx = (idx + 1) % slides.length;
+      showSlide(idx);
+    }, 4000); // cambia cada 4s
+
+    // ====== Login UX ======
+    const userInput = document.getElementById('nombreUsuario');
+    const passInput = document.getElementById('clave');
+    const btn = document.getElementById('btnSubmit');
+    const form = document.getElementById('loginForm');
+    const spinner = document.getElementById('spinner');
+    const togglePwd = document.getElementById('togglePwd');
+    const capsMsg = document.getElementById('capsMsg');
+    const rememberMe = document.getElementById('rememberMe');
+
+    function toggleBtn(){ btn.disabled = !(userInput.value.trim() && passInput.value.trim()); }
+    userInput.addEventListener('input', toggleBtn);
+    passInput.addEventListener('input', toggleBtn);
+    toggleBtn();
+
+    form.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' && btn.disabled) e.preventDefault();
+    });
+
+    form.addEventListener('submit', ()=>{
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+    });
+
+    togglePwd.addEventListener('click', ()=>{
+      const isPwd = passInput.type === 'password';
+      passInput.type = isPwd ? 'text' : 'password';
+      togglePwd.textContent = isPwd ? 'Ocultar' : 'Mostrar';
+      passInput.focus();
+    });
+
+    passInput.addEventListener('keyup', (e)=>{
+      const caps = e.getModifierState && e.getModifierState('CapsLock');
+      capsMsg.style.display = caps ? 'block' : 'none';
+    });
+
+    (function hydrateRemember(){
+      const saved = localStorage.getItem('login_user');
+      if (saved) userInput.value = saved;
+      toggleBtn();
+    })();
+    rememberMe.addEventListener('change', ()=>{
+      if (rememberMe.checked) {
+        localStorage.setItem('login_user', userInput.value.trim());
+      } else {
+        localStorage.removeItem('login_user');
+      }
+    });
+    userInput.addEventListener('blur', ()=>{
+      if (rememberMe.checked) localStorage.setItem('login_user', userInput.value.trim());
+    });
+  </script>
+</body>
+</html>

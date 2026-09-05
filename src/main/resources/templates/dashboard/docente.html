@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Docente - SGIL</title>
+
+  <!-- Favicon (opcional, evita warnings en consola) -->
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico">
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global + rompe-caché -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css" />
+
+  <style>
+    /* Tarjetas rápidas */
+    .modules-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:14px}
+    @media (max-width:900px){.modules-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}}
+    @media (max-width:600px){.modules-grid{grid-template-columns:1fr}}
+    .module-card{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;text-decoration:none;color:#111;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .module-card i{font-size:1.25rem}
+    .module-card:hover{box-shadow:0 6px 18px rgba(16,185,129,.18)}
+    .hint{font-size:.9rem;color:#6b7280}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item active" th:href="@{/dashboard/docente}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/reservas}"><i class="fas fa-file-alt"></i> Mis Reservas</a>
+     
+      <a class="nav-item" th:href="@{/dashboard/docente/asistencias}"><i class="fas fa-user-check"></i> Asistencias</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('Desde aquí puedes acceder a tus horarios, crear solicitudes de reserva y registrar asistencias.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">DC</div>
+          <span id="userName">Docente</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-chalkboard-teacher"></i> Panel Docente</h1>
+
+      <!-- Accesos rápidos -->
+      <div class="announcements-section">
+        <div class="modules-grid">
+          <a class="module-card" th:href="@{/docente/horarios}">
+            <i class="fas fa-calendar-alt"></i>
+            <div>
+              <div style="font-weight:600">Mis Horarios</div>
+              <div class="hint">Consulta tus bloques asignados</div>
+            </div>
+          </a>
+          <a class="module-card" th:href="@{/dashboard/docente/reservas}">
+            <i class="fas fa-file-alt"></i>
+            <div>
+              <div style="font-weight:600">Mis Reservas</div>
+              <div class="hint">Crea y sigue solicitudes</div>
+            </div>
+          </a>
+          <a class="module-card" th:href="@{/dashboard/docente/asistencias}">
+            <i class="fas fa-user-check"></i>
+            <div>
+              <div style="font-weight:600">Registrar asistencia</div>
+              <div class="hint">Marca asistencia de prácticas</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Últimos avisos -->
+      <div class="card">
+  <h3><i class="fas fa-bullhorn"></i> Últimos avisos</h3>
+  <div id="ultimosAvisos">Cargando avisos…</div>
+</div>
+
+    </section>
+  </main>
+
+  <script th:src="@{/js/client-info.js}"></script>
+  <script>window._postClientInfo && window._postClientInfo();</script>
+
+
+  <script>
+(async function cargarAvisos(){
+  try{
+    const r = await fetch('/api/docentes/avisos', {credentials:'include'});
+    const data = await r.json(); // [{id,titulo,unidad,fechaInicio,fechaFin,prioridad,observaciones}, ...]
+    const box = document.getElementById('ultimosAvisos');
+    if(!Array.isArray(data) || data.length === 0){
+      box.textContent = 'No hay avisos nuevos por el momento.';
+      return;
+    }
+    box.innerHTML = data.slice(0,5).map(a => `
+      <div class="card" style="padding:10px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+          <div>
+            <b>${a.titulo ?? ''}</b>
+            <div style="font-size:.9rem;color:#475569">${a.unidad ?? ''} · 
+                ${a.fechaInicio ?? ''} — ${a.fechaFin ?? ''}</div>
+          </div>
+          ${a.prioridad ? '<span class="badge badge-green">Prioritario</span>' : ''}
+        </div>
+        ${a.observaciones ? `<div style="margin-top:6px;font-size:.95rem">${a.observaciones}</div>` : ''}
+      </div>
+    `).join('');
+  }catch(e){
+    console.error(e);
+    document.getElementById('ultimosAvisos').textContent = 'No se pudieron cargar los avisos.';
+  }
+})();
+</script>
+
+
+
+  <!-- Poblar sessionStorage ANTES de checks -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+
+  <script>
+    // ===== Header/Sidebar comunes =====
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'DC';
+
+    menuToggle?.addEventListener('click', ()=>{
+      sidebar.classList.toggle('hidden');
+      mainContent.classList.toggle('expanded');
+    });
+
+   
+    userInfo?.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      userDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e)=>{
+      if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)){
+        userDropdown.classList.remove('show');
+      }
+    });
+
+    (function(){
+      const n = sessionStorage.getItem('nombreUsuario') || 'Docente';
+      userName.textContent = n;
+      userAvatar.textContent = ini(n);
+    })();
+
+    logoutBtn?.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}
+      sessionStorage.clear();
+      location.href='/login';
+    });
+
+    // Autorización mínima
+    (function(){
+      const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+      if(rol && rol!=='docente'){ alert('Acceso no autorizado.'); location.href='/login'; }
+    })();
+
+    // Responsive inicial
+    function handleResize(){
+      if (window.innerWidth <= 768) {
+        sidebar.classList.add('hidden');
+        mainContent.classList.add('expanded');
+      } else {
+        sidebar.classList.remove('hidden');
+        mainContent.classList.remove('expanded');
+      }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Placeholder de avisos
+    document.getElementById('btnFiltro')?.addEventListener('click', ()=>{
+      alert('Filtro de avisos: pendiente de implementar');
+    });
+  </script>
+</body>
+</html>

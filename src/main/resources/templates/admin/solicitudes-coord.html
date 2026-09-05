@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Solicitudes de coordinación - Admin | SGIL</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Tema global -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* ===== Estilos específicos de la vista (ligeros) ===== */
+    .toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:8px 0 16px}
+    .toolbar select{padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+    .list-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px}
+    table.tbl{width:100%;border-collapse:collapse}
+    table.tbl th,table.tbl td{border-bottom:1px solid #eee;padding:10px;text-align:left;vertical-align:top}
+    table.tbl thead th{background:#F9FAF7}
+    .muted{color:#6b7280}
+    .tbl td:nth-child(4){ color:#374151; font-weight:600; } /* Coordinador */
+
+
+    /* ===== Chips de estado ===== */
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 10px;border-radius:999px;font-weight:600;font-size:.9rem;
+      border:1px solid transparent; white-space:nowrap;
+    }
+    .badge.pendiente{ background:#FEF3C7; color:#92400E; border-color:#FDE68A; }
+    .badge.propuesta{ background:#E0E7FF; color:#3730A3; border-color:#C7D2FE; }
+    .badge.aprobada{  background:#DCFCE7; color:#065F46; border-color:#BBF7D0; }
+    .badge.rechazada{ background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
+
+    /* ===== Modal ===== */
+    .modal{position:fixed;inset:0;display:none;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;z-index:1050}
+    .modal.show{display:flex}
+
+    /* Contenedor con layout moderno */
+    .dialog{
+      background:#fff;max-width:1080px;width:100%;
+      border-radius:16px;box-shadow:0 12px 48px rgba(0,0,0,.25);
+      display:flex;flex-direction:column;overflow:hidden;
+    }
+
+    /* Header del modal */
+    .dialog .md-header{
+      padding:16px 20px;border-bottom:1px solid #eef2f7;
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap
+    }
+    .dialog .md-header h3{margin:0;font-size:1.15rem}
+    .dialog .md-sub{padding:0 20px 8px;color:#6b7280}
+
+    /* Cuerpo scrolleable */
+    .dialog .md-body{
+      padding:12px 20px 0;overflow:auto;max-height:min(72vh, 720px);
+      display:flex;flex-direction:column;gap:12px;
+    }
+
+    /* Tarjetas internas (barra materia, quickbar) */
+    .card-light{
+      background:#F9FAFB;border:1px solid #eef2f7;border-radius:12px;
+      padding:10px 12px;
+    }
+
+    /* Grid superior: selects + botón aplicar */
+    .md-toolbar{
+      display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;
+    }
+    .md-toolbar .hint{font-size:.85rem;color:#6b7280}
+
+    /* Selects con estilo */
+    .select{
+      width:100%;padding:10px 36px 10px 12px;border:1px solid #e5e7eb;border-radius:10px;
+      background:#fff;
+      appearance:none;-webkit-appearance:none;-moz-appearance:none;
+      background-image:linear-gradient(45deg,transparent 50%,#9ca3af 50%),linear-gradient(135deg,#9ca3af 50%,transparent 50%),linear-gradient(to right,#e5e7eb,#e5e7eb);
+      background-position:calc(100% - 18px) calc(50% - 3px),calc(100% - 13px) calc(50% - 3px),calc(100% - 32px) 50%;
+      background-size:5px 5px,5px 5px,1px 24px;background-repeat:no-repeat;
+    }
+    .select:disabled{background:#f3f4f6;color:#9ca3af}
+
+    /* Botón primario pequeño dentro de tarjetas */
+    .btn{border-radius:10px}
+    .btn-apply{white-space:nowrap}
+
+    /* Tabla compacta con encabezado pegajoso */
+    .md-table-wrap{
+      background:#fff;border:1px solid #eef2f7;border-radius:12px;overflow:hidden;
+    }
+    .md-table{
+      width:100%;border-collapse:separate;border-spacing:0
+    }
+    .md-table th,.md-table td{padding:10px 12px;border-bottom:1px solid #f1f5f9}
+    .md-table thead th{
+      position:sticky;top:0;background:#fff;z-index:1;
+      font-weight:600;border-bottom:1px solid #e5e7eb;
+    }
+    .md-table tbody tr:nth-child(odd){background:#fafafa}
+    .md-table tbody tr:hover{background:#f5f7fb}
+
+    /* Quickbar */
+    .quickbar{
+      display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center
+    }
+    .btn-ghost{background:transparent;border:1px dashed #cbd5e1}
+    .btn-ghost:hover{border-style:solid}
+
+    /* Textarea */
+    .dialog textarea{
+      width:100%;min-height:90px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff
+    }
+
+    /* Footer del modal */
+    .dialog .md-footer{
+      padding:12px 20px;border-top:1px solid #eef2f7;display:flex;gap:8px;justify-content:flex-end;background:#fff
+    }
+
+    /* Estado final: aclarar que es solo lectura (se mantiene tu lógica funcional) */
+    .dialog.final .card-light,
+    .dialog.final textarea{
+      opacity:.75;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (tema Admin) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-shield-alt"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/admin}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/admin/horarios}"><i class="fas fa-calendar-alt"></i> Horarios</a>
+      <a class="nav-item" th:href="@{/dashboard/admin/admin-usuarios}"><i class="fas fa-users"></i> Gestión de Usuarios</a>
+      <a class="nav-item" th:href="@{/dashboard/admin/activos}"><i class="fas fa-laptop"></i> Activos</a>
+      <a class="nav-item" th:href="@{/dashboard/admin/auditorias}"><i class="fas fa-search"></i> Auditorías</a>
+      <a class="nav-item active" th:href="@{/dashboard/admin/solicitudes-coord}"><i class="fas fa-bookmark"></i> Solicitudes (Coord.)</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('Filtra, revisa, propone, aprueba o rechaza solicitudes de coordinación.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin}"><i class="fas fa-home"></i> Inicio</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/solicitudes-coord}"><i class="fas fa-bookmark"></i> Solicitudes (Coord.)</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-bookmark"></i> Solicitudes de reserva (Coordinación)</h1>
+
+      <div class="announcements-section">
+        <div class="toolbar">
+          <div>
+            <label>Estado</label>
+            <select id="fEstado">
+              <option value="">Todos</option>
+              <option>Pendiente</option>
+              <option>Propuesta</option>
+              <option>Aprobada</option>
+              <option>Rechazada</option>
+            </select>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button class="btn" id="btnBuscar"><i class="fas fa-search"></i> Buscar</button>
+          </div>
+        </div>
+
+        <div class="list-card">
+          <table class="tbl" id="tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fecha</th>
+              <th>Carrera</th>
+              <th>Coordinador</th> <!-- NUEVO -->
+              <th>Estado</th>
+              <th>Ítems</th>
+              <th>Observaciones generales</th>
+              <th style="width:210px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Modal Detalle / Acciones ===== -->
+  <div class="modal" id="md">
+    <div class="dialog" id="mdDialog">
+      <!-- Header -->
+      <div class="md-header">
+        <h3>Solicitud <span id="mdId">#</span> — <span id="mdEstado" class="badge">—</span></h3>
+      </div>
+      <div class="md-sub" id="mdCarrera">—</div>
+
+      <!-- Body -->
+      <div class="md-body">
+        <!-- Barra rápida: asignar por materia -->
+        <div class="card-light" id="barMateria" style="display:none">
+          <div class="md-toolbar">
+            <select id="selMateria" class="select">
+              <option value="">— Seleccione materia —</option>
+            </select>
+            <select id="selLabMateria" class="select" disabled>
+              <option value="">— Seleccione laboratorio —</option>
+            </select>
+            <button class="btn btn-apply" id="btnAplicarMateria" disabled>
+              <i class="fas fa-check-double"></i> Aplicar a todas sus horas
+            </button>
+          </div>
+          <div class="hint" style="margin-top:6px">
+            Tip: el combo de laboratorio muestra choques como “ocupado…”. Solo se habilitan opciones sin conflictos.
+          </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="md-table-wrap">
+          <table class="md-table">
+            <thead> <tr> <th>Jornada</th><th>Día</th><th>Hora</th><th>Materia/Docente</th><th>Laboratorio</th> </tr> </thead>
+            <tbody id="mdBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Quickbar + Observaciones -->
+        <div class="card-light">
+          <div class="quickbar">
+            <select id="mdQuick" class="select">
+              <option value="">— Respuestas rápidas —</option>
+            </select>
+            <button class="btn" id="mdQuickAdd" title="Agregar a observaciones"><i class="fas fa-plus"></i> Agregar</button>
+            <button class="btn btn-ghost" id="mdObsClear" title="Limpiar observaciones"><i class="fas fa-eraser"></i></button>
+          </div>
+          <div style="margin-top:8px">
+            <textarea id="mdObs" placeholder="Observaciones para el solicitante (opcional)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="md-footer">
+        <button class="btn" id="mdClose">Cerrar</button>
+        <button class="btn" id="mdProponer"><i class="fas fa-lightbulb"></i> Proponer</button>
+        <button class="btn btn-danger" id="mdRechazar"><i class="fas fa-times"></i> Rechazar</button>
+        <button class="btn" id="mdAprobar"><i class="fas fa-check"></i> Aprobar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal Propuesta ===== -->
+  <div class="modal" id="mp">
+    <div class="dialog">
+      <div class="md-header">
+        <h3>Proponer nueva grilla — Solicitud <span id="mpId">#</span></h3>
+      </div>
+      <div class="md-body" style="gap:10px">
+        <div class="card-light" style="display:grid;grid-template-columns:auto 200px auto;gap:8px;align-items:center">
+          <label>Jornada</label>
+          <select id="pJornada" class="select">
+            <option>Matutina</option><option selected>Vespertina</option><option>Nocturna</option>
+          </select>
+          <button class="btn" id="pCargar"><i class="fas fa-rotate"></i> Cargar grilla</button>
+        </div>
+
+        <div class="md-table-wrap">
+          <table class="hor md-table" id="pTbl">
+            <thead><tr><th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr></thead>
+            <tbody id="pBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card-light" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <select id="pMateria" class="select"><option value="">— Materia —</option></select>
+          <select id="pDocente" class="select" disabled><option value="">— Docente (opcional) —</option></select>
+          <input id="pObs" placeholder="Observaciones (opcional)" style="grid-column:1/-1;padding:10px;border:1px solid #e5e7eb;border-radius:10px"/>
+        </div>
+      </div>
+      <div class="md-footer">
+        <button class="btn" id="pClose">Cancelar</button>
+        <button class="btn" id="pGuardar"><i class="fas fa-paper-plane"></i> Enviar propuesta</button>
+      </div>
+    </div>
+  </div>
+
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+/* ===== Respuestas rápidas (RESTITUIDO) ===== */
+const PLANTILLAS = [
+  'Se aprobó de manera parcial. Algunas horas no se asignaron por cruce con la planificación existente.',
+  'No hay laboratorio disponible en ciertos bloques solicitados. Se asignaron alternativas cuando fue posible.',
+  'Se sugiere revisar la distribución de materias para evitar choques en el mismo horario.',
+  'Se envió propuesta con laboratorios alternos para su confirmación.',
+  'Rechazada: no cumple con los criterios de disponibilidad para este período.'
+];
+
+(function initQuick(){
+  const sel = document.getElementById('mdQuick');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Respuestas rápidas —</option>';
+  PLANTILLAS.forEach(t => {
+    const op = document.createElement('option');
+    op.value = t; op.textContent = t;
+    sel.appendChild(op);
+  });
+})();
+
+function insertAtCursor(textarea, text){
+  if (!textarea) return;
+  const start = textarea.selectionStart ?? textarea.value.length;
+  const end   = textarea.selectionEnd ?? textarea.value.length;
+  const v = textarea.value;
+  const leftSpace  = start > 0 && !/\s$/.test(v.slice(0,start)) ? ' ' : '';
+  const rightSpace = end < v.length && !/^\s/.test(v.slice(end)) ? ' ' : '';
+  textarea.value = v.slice(0,start) + leftSpace + text + rightSpace + v.slice(end);
+  const pos = start + leftSpace.length + text.length;
+  textarea.focus(); textarea.setSelectionRange(pos,pos);
+}
+
+document.getElementById('mdQuickAdd')?.addEventListener('click', () => {
+  const sel = document.getElementById('mdQuick');
+  const obs = document.getElementById('mdObs');
+  if (!sel || !obs || !sel.value) return;
+  insertAtCursor(obs, sel.value);
+});
+
+document.getElementById('mdObsClear')?.addEventListener('click', () => {
+  const obs = document.getElementById('mdObs');
+  if (obs) obs.value = '';
+});
+  </script>
+
+  <script>
+/* ===== SweetAlert ===== */
+function swalMsg(title='Mensaje', html='', icon='info'){
+  return Swal.fire({ icon, title, html, confirmButtonText:'Aceptar', showCloseButton:true, width:520 });
+}
+const Toast = Swal.mixin({ toast:true, position:'top-end', showConfirmButton:false, timer:3000, timerProgressBar:true });
+const toastOk = (m)=>Toast.fire({icon:'success', title:m});
+const toastWarn = (m)=>Toast.fire({icon:'warning', title:m});
+const toastErr = (m)=>Toast.fire({icon:'error', title:m});
+
+/* ===== Layout / sesión ===== */
+const menuToggle=document.getElementById('menuToggle'), sidebar=document.getElementById('sidebar'), mainContent=document.getElementById('mainContent');
+const userInfo=document.getElementById('userInfo'), userDropdown=document.getElementById('userDropdown'), userName=document.getElementById('userName'), userAvatar=document.getElementById('userAvatar'), logoutBtn=document.getElementById('logoutBtn');
+const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+(function(){const hb=document.querySelector('.help-btn'); if(hb){hb.onclick=()=>{swalMsg('Ayuda','Filtra, revisa, propone, aprueba o rechaza solicitudes de coordinación.','info');return false;};}})();
+menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show');});
+(function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n);})();
+logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){ } sessionStorage.clear(); location.href='/login'; });
+(function(){ const rol=(sessionStorage.getItem('rol')||'').toLowerCase(); if(rol && rol!=='administrador' && rol!=='admin'){ swalMsg('Acceso no autorizado','Tu sesión no tiene permisos para esta vista.','error').then(()=>location.href='/login'); }})();
+function handleResize(){ if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); } else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); } }
+handleResize(); window.addEventListener('resize', handleResize);
+
+/* ===== API ===== */
+const API = {
+  listar:   '/api/admin/coord/solicitudes',
+  detalles: id => `/api/admin/coord/solicitudes/${id}/detalles`,
+  aprobar:  id => `/api/admin/coord/solicitudes/${id}/aprobar`,
+  rechazar: id => `/api/admin/coord/solicitudes/${id}/rechazar`,
+  proponer: id => `/api/admin/coord/solicitudes/${id}/proponer`,
+  materias: '/api/coordinador/materias',
+  docentes: idMateria => `/api/coordinador/docentes-por-materia?idMateria=${idMateria}`,
+  horarios: j => `/api/horarios?jornada=${encodeURIComponent(j)}`,
+  labs: (idSolicitud, idHorario) => `/api/admin/coord/labs-disponibles?idSolicitud=${idSolicitud}&idHorario=${idHorario}`
+};
+
+const $ = s => document.querySelector(s);
+const el = (t,props={}) => Object.assign(document.createElement(t),props);
+
+/* ===== Helpers de estado (chips coloreadas) ===== */
+const norm = s => (s||'').toString().trim().toLowerCase();
+function estadoClass(est){
+  const e = norm(est);
+  if(e.startsWith('pend')) return 'pendiente';
+  if(e.startsWith('prop')) return 'propuesta';
+  if(e.startsWith('apro')) return 'aprobada';
+  if(e.startsWith('rech')) return 'rechazada';
+  return '';
+}
+function estadoIcon(est){
+  const c = estadoClass(est);
+  if(c==='pendiente') return 'fa-clock';
+  if(c==='propuesta') return 'fa-lightbulb';
+  if(c==='aprobada')  return 'fa-check';
+  if(c==='rechazada') return 'fa-times';
+  return 'fa-circle';
+}
+function estadoBadge(est){
+  const cls = estadoClass(est), icon = estadoIcon(est);
+  return `<span class="badge ${cls}"><i class="fas ${icon}"></i> ${est}</span>`;
+}
+
+/* ===== Listado ===== */
+async function cargar(){
+  const est = $('#fEstado').value || '';
+  let r;
+  try{ r = await fetch(API.listar + (est?`?estado=${encodeURIComponent(est)}`:'')); }
+  catch(_){ toastErr('No se pudo listar'); return; }
+  if(!r.ok){ toastErr('No se pudo listar'); return; }
+  const data = await r.json();
+  const tb = $('#tbody'); tb.innerHTML = '';
+  data.forEach(x=>{
+    const tr = el('tr');
+
+    const stClass = estadoClass(x.estado ?? '');
+    const isFinal = (stClass === 'aprobada' || stClass === 'rechazada');
+
+    const accionesHtml = isFinal
+      ? `<button class="btn" data-ver="${x.id}"><i class="fas fa-eye"></i> Ver</button>`
+      : `<button class="btn" data-ver="${x.id}"><i class="fas fa-eye"></i> Ver</button>
+         <button class="btn" data-prop="${x.id}" title="Proponer"><i class="fas fa-lightbulb"></i></button>
+         <button class="btn" data-ok="${x.id}" title="Aprobar"><i class="fas fa-check"></i></button>
+         <button class="btn btn-danger" data-rej="${x.id}" title="Rechazar"><i class="fas fa-times"></i></button>`;
+
+    const estadoHtml = `
+      ${estadoBadge(x.estado ?? '')}
+      ${x.fAsig ? `<div class="muted" style="margin-top:4px">Asignado: ${x.fAsig}</div>` : ''}
+    `;
+
+    tr.innerHTML = `
+      <td>${x.id}</td>
+      <td>${x.fecha ?? ''}</td>
+      <td>${x.carrera ?? ''}</td>
+      <td>${x.coord ?? ''}</td>
+      <td data-raw="${x.estado ?? ''}">${estadoHtml}</td>
+      <td>${x.items ?? ''}</td>
+      <td>${((x.obs||'')+'').replace(/\n/g,'<br>')}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">${accionesHtml}</td>
+    `;
+    tb.append(tr);
+  });
+}
+$('#btnBuscar').onclick = cargar;
+
+/* ===== Modal Detalle ===== */
+let CURR_ID = null;
+let GRUPOS_MATERIA = new Map();
+let MATERIA_LAB = new Map();
+
+async function cargarLabsDisponibles(idSolicitud, idHorario){
+  try{ const r = await fetch(API.labs(idSolicitud, idHorario)); if(!r.ok) return []; return await r.json(); }
+  catch(_){ return []; }
+}
+
+async function cargarLabsResumen(idSolicitud, listaHorarios){
+  const total = listaHorarios.length;
+  const map = new Map();
+  for (const h of listaHorarios){
+    const opts = await cargarLabsDisponibles(idSolicitud, h);
+    for (const o of opts){
+      if(!map.has(o.id)) map.set(o.id, { id:o.id, codigo:o.codigo, nombre:o.nombre, preferido:!!o.preferido, okCount:0 });
+      map.get(o.id).okCount += 1;
+    }
+  }
+  const out = [];
+  for (const v of map.values()){
+    const conflicts = total - v.okCount;
+    const base = `${v.codigo} - ${v.nombre}${v.preferido ? ' ★' : ''}`;
+    out.push({ id:v.id, label: conflicts===0? base : `${base} — ocupado en ${conflicts} hora(s) —`, preferido:v.preferido, conflicts, enabled:conflicts===0 });
+  }
+  out.sort((a,b)=>{ if (a.enabled!==b.enabled) return a.enabled?-1:1; if (a.preferido!==b.preferido) return a.preferido?-1:1; return a.label.localeCompare(b.label,'es'); });
+  return out;
+}
+
+function setLabTextForMateria(materia, label){
+  const filas = GRUPOS_MATERIA.get(materia) || [];
+  filas.forEach(({labCell, ocupado})=>{
+    if (ocupado) return;
+    labCell.textContent = label || '— asignar en la barra —';
+    labCell.className = label ? 'lab-text' : 'lab-missing';
+  });
+}
+
+async function ver(id){
+  CURR_ID = id;
+  const r = await fetch(API.detalles(id));
+  if(!r.ok){ swalMsg('Atención','No autorizado o no existe.','warning'); return; }
+  let data = await r.json();
+
+  data.sort((a,b)=>{
+    const m = (a.materia||'').localeCompare(b.materia||'','es'); if(m!==0) return m;
+    const h = (a.hi||'').localeCompare(b.hi||''); if(h!==0) return h;
+    return (a.dia||'').localeCompare(b.dia||'','es');
+  });
+
+  const rowBtn = document.querySelector(`button[data-ver="${id}"]`);
+  const row = rowBtn ? rowBtn.closest('tr') : null;
+  const estTexto = row ? (row.querySelector('td:nth-child(5)')?.getAttribute('data-raw') || '') : '';
+  const carrera  = row ? (row.querySelector('td:nth-child(3)')?.textContent || '') : '';
+ const coord    = row ? (row.querySelector('td:nth-child(4)')?.textContent || '') : ''; 
+  // Chip
+  const mdEstado = document.getElementById('mdEstado');
+  mdEstado.className = 'badge ' + estadoClass(estTexto);
+  mdEstado.innerHTML = `<i class="fas ${estadoIcon(estTexto)}"></i> ${estTexto}`;
+  document.getElementById('mdId').textContent = '#'+id;
+  document.getElementById('mdCarrera').textContent = coord 
+  ? `${carrera} • Coord.: ${coord}`
+  : carrera;
+
+  // Marcar visual "final" para estilos (no afecta tu lógica)
+  const esFinal = ['aprobada','rechazada'].includes(estadoClass(estTexto));
+  document.getElementById('mdDialog').classList.toggle('final', esFinal);
+
+  // Ocultar acciones del modal si es final (tu lógica existente)
+  ['mdProponer','mdRechazar','mdAprobar'].forEach(bid=>{
+    const b = document.getElementById(bid);
+    if (!b) return;
+    b.style.display = esFinal ? 'none' : '';
+  });
+  if (esFinal) document.getElementById('barMateria').style.display = 'none';
+
+  const b = document.getElementById('mdBody'); b.innerHTML='';
+  GRUPOS_MATERIA.clear(); MATERIA_LAB.clear();
+  const materiasSet = new Set();
+
+  for (const d of data){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${d.jornada}</td>
+      <td>${d.dia}</td>
+      <td>${d.hi}-${d.hf}</td>
+      <td>${d.materia}</td>
+      <td class="lab-missing">— verificando —</td>`;
+    b.append(tr);
+
+    const labCell = tr.children[4];
+    const opts = await cargarLabsDisponibles(CURR_ID, d.idHorario);
+    const ocupado = (opts.length === 0);
+    if (ocupado){ labCell.textContent = 'ocupado (planificación)'; labCell.className = 'lab-missing'; }
+    else{ labCell.textContent = '— asignar en la barra —'; labCell.className = 'lab-missing'; }
+
+    materiasSet.add(d.materia);
+    if (!GRUPOS_MATERIA.has(d.materia)) GRUPOS_MATERIA.set(d.materia, []);
+    GRUPOS_MATERIA.get(d.materia).push({ idHorario: d.idHorario, labCell, ocupado });
+  }
+
+  const selMat = document.getElementById('selMateria');
+  selMat.innerHTML = '<option value="">— Seleccione materia —</option>';
+  [...materiasSet].sort((a,b)=>a.localeCompare(b,'es')).forEach(m=>{
+    const op = document.createElement('option'); op.value = m; op.textContent = m; selMat.appendChild(op);
+  });
+  document.getElementById('barMateria').style.display = materiasSet.size ? 'block' : 'none';
+  document.getElementById('selLabMateria').innerHTML = '<option value="">— Seleccione laboratorio —</option>';
+  document.getElementById('selLabMateria').disabled = true;
+  document.getElementById('btnAplicarMateria').disabled = true;
+
+  document.getElementById('md').classList.add('show');
+}
+document.getElementById('mdClose').onclick=()=>document.getElementById('md').classList.remove('show');
+
+document.getElementById('selMateria').addEventListener('change', async (e)=>{
+  const mat = e.target.value;
+  const labSel = document.getElementById('selLabMateria');
+  const btnAp  = document.getElementById('btnAplicarMateria');
+
+  labSel.innerHTML = '<option value="">(Calculando...)</option>';
+  labSel.disabled = true; btnAp.disabled = true;
+
+  if (!mat || !GRUPOS_MATERIA.has(mat)){
+    labSel.innerHTML = '<option value="">— Seleccione laboratorio —</option>';
+    return;
+  }
+
+  const horarios = GRUPOS_MATERIA.get(mat).map(x => x.idHorario);
+  const resumen = await cargarLabsResumen(CURR_ID, horarios);
+
+  if (resumen.length === 0){
+    labSel.innerHTML = '<option value="">(sin laboratorios para ninguna de sus horas)</option>';
+    toastWarn('Sin laboratorios disponibles para esa materia');
+    return;
+  }
+
+  labSel.innerHTML = '';
+  for (const item of resumen){
+    const op = document.createElement('option');
+    op.value = item.id;
+    op.textContent = item.label;
+    if (!item.enabled) op.disabled = true;
+    labSel.appendChild(op);
+  }
+  labSel.disabled = false;
+
+  const evaluar = ()=>{ const sel = labSel.selectedOptions[0]; btnAp.disabled = !(sel && !sel.disabled && sel.value); };
+  labSel.onchange = evaluar; evaluar();
+});
+
+document.getElementById('btnAplicarMateria').addEventListener('click', ()=>{
+  const mat = document.getElementById('selMateria').value;
+  const sel = document.getElementById('selLabMateria');
+  const opt = sel.selectedOptions[0];
+  if (!mat || !opt || opt.disabled || !sel.value){
+    swalMsg('No se puede asignar','El laboratorio seleccionado presenta choques en alguna hora de esta materia. Elija uno disponible.','warning');
+    return;
+  }
+  const idLab = parseInt(sel.value, 10);
+  const label = opt.textContent.replace(/\s—\socupado.*$/,'');
+  MATERIA_LAB.set(mat, {id:idLab, label});
+  setLabTextForMateria(mat, label);
+});
+
+/* Aprobar */
+document.getElementById('mdAprobar').onclick = async ()=>{
+  if(!CURR_ID) return;
+  const obs = document.getElementById('mdObs').value || '';
+
+  const materias = [...GRUPOS_MATERIA.keys()];
+  const obligatorias = materias.filter(m => {
+    const filas = GRUPOS_MATERIA.get(m) || [];
+    const libres = filas.filter(f => !f.ocupado);
+    return libres.length > 0;
+  });
+  const faltantes = obligatorias.filter(m => !MATERIA_LAB.has(m));
+  if (faltantes.length > 0){
+    swalMsg('Falta completar','Debes elegir un laboratorio para cada materia usando la barra superior.','warning');
+    return;
+  }
+  const labsMateria = {}; for (const [mat, info] of MATERIA_LAB.entries()) labsMateria[mat] = info.id;
+
+  let r;
+  try{
+    r = await fetch(API.aprobar(CURR_ID), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ observaciones: obs, labs: [], labsMateria })
+    });
+  }catch(_){ swalMsg('Error','No se pudo contactar al servidor.','error'); return; }
+
+  const j = await r.json();
+  if (!r.ok || j.ok !== true){ swalMsg('No se puede aprobar', j.motivo || 'Operación rechazada.', 'error'); return; }
+
+  if (j.parcial) toastWarn('Asignación parcial. La solicitud quedó como "Propuesta".');
+  else toastOk('Solicitud aprobada.');
+
+  document.getElementById('md').classList.remove('show'); cargar();
+};
+
+/* Rechazar */
+document.getElementById('mdRechazar').onclick = async ()=>{
+  if(!CURR_ID) return;
+  const { value: motivo } = await Swal.fire({
+    title: 'Motivo de rechazo', input: 'text', inputValue: document.getElementById('mdObs').value || '',
+    inputPlaceholder: 'Escribe el motivo...', showCancelButton: true,
+    confirmButtonText: 'Rechazar', cancelButtonText: 'Cancelar',
+    inputValidator: (v)=> !v ? 'Debes ingresar un motivo' : undefined
+  });
+  if(motivo === undefined) return;
+  await fetch(API.rechazar(CURR_ID), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({observaciones: motivo}) });
+  toastOk('Solicitud rechazada'); document.getElementById('md').classList.remove('show'); cargar();
+};
+
+/* Proponer */
+document.getElementById('mdProponer').onclick = ()=>{ if(!CURR_ID) return; document.getElementById('mpId').textContent = '#'+CURR_ID; document.getElementById('pObs').value = document.getElementById('mdObs').value || ''; document.getElementById('md').classList.remove('show'); abrirEditor(); };
+
+/* ===== Editor de propuesta ===== */
+let H=[], SEL=new Map();
+function vac(div){ div.className='slot vacio'; div.textContent='vacío'; div.dataset.label=''; }
+function asig(div,label){
+  div.className='slot asignado'; div.dataset.label=label;
+  div.innerHTML = `<span class="pill2"><i class="fas fa-book"></i> ${label}<button class="x" aria-label="Quitar">&times;</button></span>`;
+  div.querySelector('.x').onclick = (e)=>{ e.stopPropagation(); SEL.delete(parseInt(div.dataset.hid)); vac(div); };
+}
+
+async function cargarHor(j){
+  const r = await fetch(API.horarios(j));
+  if(!r.ok){ swalMsg('Error','No se pudo cargar el horario.','error'); return; }
+  const data = await r.json();
+  H = data.map(x=>({id:x.id??x.id_horario,dia:(x.diaSemana??x.dia_semana??x.dia),hi:x.horaInicio??x.hi??x.hora_inicio,hf:x.horaFin??x.hf??x.hora_fin}));
+  const htxt=(a,b)=>`${(a||'').substring(0,5)}-${(b||'').substring(0,5)}`;
+  const rang=[...new Set(H.map(h=>htxt(h.hi,h.hf)))].sort();
+  const map=new Map(H.map(h=>[`${htxt(h.hi,h.hf)}|${h.dia}`,h]));
+  const tb=document.getElementById('pBody'); tb.innerHTML='';
+  rang.forEach(rg=>{
+    const tr=el('tr'); tr.append(el('td',{textContent:rg,style:'font-weight:600'}));
+    ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(d=>{
+      const h=map.get(`${rg}|${d}`); const td=el('td');
+      if(!h){ td.append(el('div',{className:'slot vacio',textContent:'vacío'})); }
+      else{
+        const div=el('div',{className:'slot vacio',textContent:'vacío'}); div.dataset.hid=h.id;
+        div.onclick=()=>elegir(h,div);
+        td.append(div);
+        const pre=SEL.get(h.id); if(pre) asig(div,pre.label);
+      }
+      tr.append(td);
+    });
+    tb.append(tr);
+  });
+}
+
+async function cargarMaterias(){
+  const sel=document.getElementById('pMateria'); sel.innerHTML='<option value="">— Materia —</option>';
+  const r=await fetch(API.materias); if(!r.ok) return;
+  const data=await r.json();
+  data.forEach(m=>{ sel.append(el('option',{value:(m.id??m.id_materia),textContent:(m.cod_materia??m.codigo)+' - '+(m.nombre_materia??m.nombre)})); });
+}
+async function cargarDocentes(idM){
+  const s=document.getElementById('pDocente'); s.innerHTML='<option value="">— Docente (opcional) —</option>'; s.disabled=true;
+  if(!idM) return;
+  const r=await fetch(API.docentes(idM)); if(!r.ok) return;
+  const data=await r.json();
+  data.forEach(d=> s.append(el('option',{value:(d.id??d.id_docente),textContent:(d.label??d.nombres_apellidos)})) );
+  s.disabled=false;
+}
+document.getElementById('pMateria').onchange = e=>cargarDocentes(e.target.value);
+
+function elegir(h,div){
+  const idM=parseInt(document.getElementById('pMateria').value||'');
+  if(!idM){ toastWarn('Selecciona una materia primero'); return; }
+  const idD=document.getElementById('pDocente').value?parseInt(document.getElementById('pDocente').value):null;
+  const label = document.getElementById('pMateria').selectedOptions[0].text + (idD?` (${document.getElementById('pDocente').selectedOptions[0].text})`:``);
+  SEL.set(h.id,{idMateria:idM,idDocente:idD,label});
+  asig(div,label);
+}
+
+async function abrirEditor(){
+  SEL.clear();
+  document.getElementById('mp').classList.add('show');
+  await cargarHor(document.getElementById('pJornada').value);
+  await cargarMaterias();
+}
+document.getElementById('pCargar').onclick = ()=>cargarHor(document.getElementById('pJornada').value);
+document.getElementById('pClose').onclick = ()=>document.getElementById('mp').classList.remove('show');
+
+document.getElementById('pGuardar').onclick = async ()=>{
+  if(!CURR_ID) return;
+  if(SEL.size===0){ swalMsg('Sin selección','No hay celdas seleccionadas.','warning'); return; }
+  const celdas=[...SEL.entries()].map(([idHorario,v])=>({idHorario:parseInt(idHorario),idMateria:v.idMateria,idDocente:v.idDocente??null}));
+  const obs=document.getElementById('pObs').value;
+  const r=await fetch(API.proponer(CURR_ID),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({observaciones:obs,celdas})});
+  const j=await r.json();
+  if(!j.ok){ swalMsg('Error','No se pudo enviar la propuesta.','error'); return; }
+  toastOk(`Propuesta enviada (${j.items} ítem(s))`);
+  document.getElementById('mp').classList.remove('show');
+  cargar();
+};
+
+/* Delegación acciones en la tabla */
+document.getElementById('tbody').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.ver) ver(parseInt(b.dataset.ver));
+  if(b.dataset.ok)  { CURR_ID=parseInt(b.dataset.ok); document.getElementById('mdObs').value=''; ver(CURR_ID); }
+  if(b.dataset.rej) { CURR_ID=parseInt(b.dataset.rej); ver(CURR_ID); }
+  if(b.dataset.prop){ CURR_ID=parseInt(b.dataset.prop); document.getElementById('mdObs').value=''; ver(CURR_ID); }
+});
+
+/* Init */
+cargar();
+
+/* Cerrar modales clic fuera */
+document.getElementById('md')?.addEventListener('click', (e)=>{ if(e.target.id==='md') document.getElementById('md').classList.remove('show'); });
+document.getElementById('mp')?.addEventListener('click', (e)=>{ if(e.target.id==='mp') document.getElementById('mp').classList.remove('show'); });
+  </script>
+
+</body>
+</html>

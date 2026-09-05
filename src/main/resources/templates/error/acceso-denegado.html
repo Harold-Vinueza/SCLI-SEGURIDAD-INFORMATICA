@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso denegado</title>
+</head>
+<body>
+    <h2>Acceso no autorizado</h2>
+    <p th:text="${error}">No tiene permisos para acceder a esta página.</p>
+    <a href="/login.html">Volver al inicio</a>
+</body>
+</html>

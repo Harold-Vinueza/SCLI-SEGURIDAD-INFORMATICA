@@ -1,0 +1,933 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="es" xmlns:th="http://www.thymeleaf.org">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8"/>-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>-->
+<!--    <title>Auditorías</title>-->
+
+<!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>-->
+<!--    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>-->
+
+<!--    <style>-->
+<!--        /* Filtros */-->
+<!--        .form-grid { display: flex; gap: 12px; flex-wrap: wrap; align-items: end }-->
+<!--        .form-grid label { font-size: .9rem; color: #6b7280 }-->
+<!--        .form-grid input, .form-grid select { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px }-->
+
+<!--        /* Chips */-->
+<!--        .chips { display: flex; gap: 8px; flex-wrap: wrap }-->
+<!--        .chip { background: #F1F5F9; color: #334155; border-radius: 999px; padding: 4px 10px; font-size: .85rem }-->
+
+<!--        /* Tabla */-->
+<!--        .table { width: 100%; border-collapse: collapse }-->
+<!--        .table th, .table td { padding: 12px 10px; border-bottom: 1px solid var(&#45;&#45;border-light); text-align: left; vertical-align: top }-->
+<!--        .table thead th { background: #F9FAF7; color: #334155; font-weight: 600 }-->
+<!--        .muted { color: #6b7280 }-->
+<!--        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; white-space: pre-wrap }-->
+
+<!--        details { background: #F8FAFC; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px 10px }-->
+<!--        summary { cursor: pointer; font-weight: 600; color: #334155 }-->
+
+<!--        /* Tabs */-->
+<!--        .tabs { display: flex; gap: 8px; margin-bottom: 12px }-->
+<!--        .tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(&#45;&#45;border-light); border-radius: 10px; background: #fff; color: #334155; text-decoration: none }-->
+<!--        .tab.active { background: #111827; color: #fff; border-color: #111827 }-->
+
+<!--        .hidden { display: none }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+
+<!--&lt;!&ndash; ===== Sidebar ===== &ndash;&gt;-->
+<!--<aside class="sidebar" id="sidebar">-->
+<!--    <div class="logo-section">-->
+<!--        <div class="logo"><i class="fas fa-desktop"></i></div>-->
+<!--        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>-->
+<!--    </div>-->
+<!--    <nav class="nav-menu">-->
+<!--        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>-->
+<!--        <a th:href="@{/dashboard/admin/laboratorios}" class="nav-item"><i class="fas fa-building"></i> Laboratorios</a>-->
+<!--        <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>-->
+<!--        <a th:href="@{/dashboard/admin/auditorias(tab=${tab})}" class="nav-item active"><i class="fas fa-search"></i> Auditorías</a>-->
+<!--    </nav>-->
+<!--    <div class="help-section">-->
+<!--        <button class="help-btn" type="button" onclick="showHelp()"><i class="fas fa-question-circle"></i> Ayuda</button>-->
+<!--    </div>-->
+<!--</aside>-->
+
+<!--&lt;!&ndash; ===== Main ===== &ndash;&gt;-->
+<!--<main class="main-content" id="mainContent">-->
+<!--    <header class="header">-->
+<!--        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>-->
+<!--        <div class="user-section">-->
+<!--            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">-->
+<!--                <div class="user-avatar" id="userAvatar">AD</div>-->
+<!--                <span id="userName">Administrador</span><i class="fas fa-chevron-down"></i>-->
+<!--            </button>-->
+<!--            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">-->
+<!--                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>-->
+<!--                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>-->
+<!--                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </header>-->
+
+<!--    <section class="dashboard">-->
+<!--        <h1 class="page-title"><i class="fas fa-search"></i> Auditorías</h1>-->
+
+<!--        &lt;!&ndash; ===== Tabs ===== &ndash;&gt;-->
+<!--        <div class="announcements-section tabs">-->
+<!--            <a class="tab" th:classappend="${tab=='logins'} ? ' active'"-->
+<!--               th:href="@{/dashboard/admin/auditorias(tab='logins')}"><i class="fas fa-sign-in-alt"></i> Logins</a>-->
+<!--            <a class="tab" th:classappend="${tab=='sesiones'} ? ' active'"-->
+<!--               th:href="@{/dashboard/admin/auditorias(tab='sesiones')}"><i class="fas fa-clock"></i> Sesiones</a>-->
+<!--            <a class="tab" th:classappend="${tab=='cambios'} ? ' active'"-->
+<!--               th:href="@{/dashboard/admin/auditorias(tab='cambios')}"><i class="fas fa-pen"></i> Cambios</a>-->
+<!--        </div>-->
+
+<!--        &lt;!&ndash; ====================================== &ndash;&gt;-->
+<!--        &lt;!&ndash; ===========   LOGINS TAB   =========== &ndash;&gt;-->
+<!--        &lt;!&ndash; ====================================== &ndash;&gt;-->
+<!--        <div th:if="${tab=='logins'}">-->
+<!--            &lt;!&ndash; Filtros &ndash;&gt;-->
+<!--            <form class="announcements-section form-grid" th:action="@{/dashboard/admin/auditorias}" method="get">-->
+<!--                <input type="hidden" name="tab" value="logins"/>-->
+<!--                <div>-->
+<!--                    <label>Usuario</label><br>-->
+<!--                    <input name="user" th:value="${fUser}" placeholder="username contiene...">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>OK</label><br>-->
+<!--                    <select name="ok">-->
+<!--                        <option value="" th:selected="${fOk == null}">(todos)</option>-->
+<!--                        <option th:value="${true}" th:selected="${fOk == true}">Correcto</option>-->
+<!--                        <option th:value="${false}" th:selected="${fOk == false}">Fallido</option>-->
+<!--                    </select>-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Desde (UTC)</label><br>-->
+<!--                    <input name="desde" type="datetime-local" th:value="${fDesde}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Hasta (UTC)</label><br>-->
+<!--                    <input name="hasta" type="datetime-local" th:value="${fHasta}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Límite</label><br>-->
+<!--                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">-->
+<!--                </div>-->
+<!--                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>-->
+<!--                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='logins')}"-->
+<!--                   style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">-->
+<!--                    <i class="fas fa-undo"></i> Limpiar-->
+<!--                </a>-->
+<!--            </form>-->
+
+<!--            &lt;!&ndash; Chips &ndash;&gt;-->
+<!--            <div class="announcements-section"-->
+<!--                 th:if="${fUser != null or fOk != null or fDesde != null or fHasta != null}">-->
+<!--                <div class="chips">-->
+<!--                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>-->
+<!--                    <div class="chip" th:if="${fOk != null}"><i class="fas fa-check-circle"></i>&nbsp;ok: <b th:text="${fOk}"></b></div>-->
+<!--                    <div class="chip" th:if="${fDesde}"><i class="fas fa-clock"></i>&nbsp;desde: <b th:text="${fDesde}"></b></div>-->
+<!--                    <div class="chip" th:if="${fHasta}"><i class="fas fa-clock"></i>&nbsp;hasta: <b th:text="${fHasta}"></b></div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            &lt;!&ndash; Tabla &ndash;&gt;-->
+<!--            <div class="announcements-section" style="overflow:auto">-->
+<!--                <table class="table">-->
+<!--                    <thead>-->
+<!--                    <tr>-->
+<!--                        <th>Fecha/Hora</th>-->
+<!--                        <th>Usuario</th>-->
+<!--                        <th>OK</th>-->
+<!--                        <th>Rol</th>-->
+<!--                        &lt;!&ndash; <th>DB Role</th> oculto &ndash;&gt;-->
+<!--                        <th>IP</th>-->
+<!--                        <th>Navegador</th>-->
+<!--                        <th>S.O.</th>-->
+<!--                        <th>Dispositivo</th>-->
+<!--                        <th>User-Agent</th>-->
+<!--                    </tr>-->
+<!--                    </thead>-->
+<!--                    <tbody>-->
+<!--                    <tr th:each="e : ${itemsLogins}">-->
+<!--                        <td th:text="${e.fechaHora != null ? #temporals.format(e.fechaHora, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>-->
+<!--                        <td>-->
+<!--                            <div th:text="${e.username}"></div>-->
+<!--                            <div class="muted" th:text="${e.nombreCompleto}"></div>-->
+<!--                        </td>-->
+<!--                        <td th:text="${e.ok}"></td>-->
+<!--                        <td th:text="${e.nombreRol}"></td>-->
+<!--                        &lt;!&ndash; <td th:text="${e.dbRole} ?: '-'"></td> &ndash;&gt;-->
+<!--                        <td th:text="${e.ip} ?: '-'"></td>-->
+
+<!--                        &lt;!&ndash; === NUEVOS CAMPOS DERIVADOS DE userAgent (sin tocar DTO) === &ndash;&gt;-->
+<!--                        &lt;!&ndash; Navegador &ndash;&gt;-->
+<!--                        <td th:with="ua=${e.userAgent}"-->
+<!--                            th:text="${#strings.containsIgnoreCase(ua,'Edg/') ? 'Microsoft Edge' :-->
+<!--                                      (#strings.containsIgnoreCase(ua,'OPR/') ? 'Opera' :-->
+<!--                                      ((#strings.containsIgnoreCase(ua,'Firefox/') or #strings.containsIgnoreCase(ua,'FxiOS/')) ? 'Firefox' :-->
+<!--                                      ((#strings.containsIgnoreCase(ua,'CriOS/') or #strings.containsIgnoreCase(ua,'Chrome/')) and !#strings.containsIgnoreCase(ua,'Chromium') ? 'Chrome' :-->
+<!--                                      ((#strings.containsIgnoreCase(ua,'Safari') and !#strings.containsIgnoreCase(ua,'Chrome')) ? 'Safari' : '-'))))}"></td>-->
+
+<!--                        &lt;!&ndash; S.O. &ndash;&gt;-->
+<!--                        <td th:with="ua=${e.userAgent}"-->
+<!--                            th:text="${#strings.containsIgnoreCase(ua,'Android') ? 'Android' :-->
+<!--                                      ((#strings.containsIgnoreCase(ua,'iPhone') or #strings.containsIgnoreCase(ua,'iPad') or #strings.containsIgnoreCase(ua,'iOS')) ? 'iOS' :-->
+<!--                                      (#strings.containsIgnoreCase(ua,'Windows') ? 'Windows' :-->
+<!--                                      (#strings.containsIgnoreCase(ua,'Mac OS X') ? 'macOS' :-->
+<!--                                      (#strings.containsIgnoreCase(ua,'Linux') ? 'Linux' : '-'))))}"></td>-->
+
+<!--                        &lt;!&ndash; Dispositivo &ndash;&gt;-->
+<!--                        <td th:with="ua=${e.userAgent}"-->
+<!--                            th:text="${(#strings.containsIgnoreCase(ua,'Android') or #strings.containsIgnoreCase(ua,'iPhone') or #strings.containsIgnoreCase(ua,'iPad') or #strings.containsIgnoreCase(ua,'Mobile')) ? 'mobile' : 'desktop'}"></td>-->
+
+<!--                        <td th:text="${e.userAgent}"></td>-->
+<!--                    </tr>-->
+<!--                    <tr th:if="${#lists.isEmpty(itemsLogins)}">-->
+<!--                        <td colspan="9" class="muted">No hay registros para mostrar.</td>-->
+<!--                    </tr>-->
+<!--                    </tbody>-->
+<!--                </table>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--        &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--        &lt;!&ndash; ===========   SESIONES TAB   =========== &ndash;&gt;-->
+<!--        &lt;!&ndash; ======================================== &ndash;&gt;-->
+<!--        <div th:if="${tab=='sesiones'}">-->
+<!--            <form class="announcements-section form-grid" th:action="@{/dashboard/admin/auditorias}" method="get">-->
+<!--                <input type="hidden" name="tab" value="sesiones"/>-->
+<!--                <div>-->
+<!--                    <label>Usuario</label><br>-->
+<!--                    <input name="user" th:value="${fUser}" placeholder="username contiene...">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Desde (UTC)</label><br>-->
+<!--                    <input name="desde" type="datetime-local" th:value="${fDesde}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Hasta (UTC)</label><br>-->
+<!--                    <input name="hasta" type="datetime-local" th:value="${fHasta}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Límite</label><br>-->
+<!--                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">-->
+<!--                </div>-->
+<!--                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>-->
+<!--                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='sesiones')}"><i class="fas fa-undo"></i> Limpiar</a>-->
+<!--            </form>-->
+
+<!--            <div class="announcements-section" th:if="${fUser != null or fDesde != null or fHasta != null}">-->
+<!--                <div class="chips">-->
+<!--                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>-->
+<!--                    <div class="chip" th:if="${fDesde}"><i class="fas fa-clock"></i>&nbsp;desde: <b th:text="${fDesde}"></b></div>-->
+<!--                    <div class="chip" th:if="${fHasta}"><i class="fas fa-clock"></i>&nbsp;hasta: <b th:text="${fHasta}"></b></div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="announcements-section" style="overflow:auto">-->
+<!--                <table class="table">-->
+<!--                    <thead>-->
+<!--                    <tr>-->
+<!--                        <th>Inicio</th>-->
+<!--                        <th>Última actividad</th>-->
+<!--                        <th>Fin</th>-->
+<!--                        <th>Activa</th>-->
+<!--                        <th>Duración</th>-->
+<!--                        <th>Usuario</th>-->
+<!--                        <th>Rol</th>-->
+<!--                        &lt;!&ndash; <th>DB Role</th> oculto &ndash;&gt;-->
+<!--                        <th>IP</th>-->
+<!--                        <th>User-Agent</th>-->
+<!--                        <th>Session ID</th>-->
+<!--                    </tr>-->
+<!--                    </thead>-->
+<!--                    <tbody>-->
+<!--                    <tr th:each="e : ${itemsSesiones}">-->
+<!--                        <td th:text="${e.startAt != null ? #temporals.format(e.startAt, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>-->
+<!--                        <td th:text="${e.lastSeen != null ? #temporals.format(e.lastSeen, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>-->
+<!--                        <td th:text="${e.endAt != null ? #temporals.format(e.endAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></td>-->
+<!--                        <td th:text="${e.activa}"></td>-->
+<!--                        <td>-->
+<!--                            <span th:text="${(e.duracionSeg != null ? (e.duracionSeg/60) : 0)}"></span> min-->
+<!--                            <span class="muted">(</span><span th:text="${e.duracionSeg}"></span><span class="muted"> s)</span>-->
+<!--                        </td>-->
+<!--                        <td th:text="${e.username}"></td>-->
+<!--                        <td th:text="${e.nombreRol}"></td>-->
+<!--                        &lt;!&ndash; <td th:text="${e.dbRole} ?: '-'"></td> &ndash;&gt;-->
+<!--                        <td th:text="${e.ip} ?: '-'"></td>-->
+<!--                        <td>-->
+<!--                            <div class="muted" th:text="${#strings.abbreviate(e.userAgent, 50)}"></div>-->
+<!--                            <details>-->
+<!--                                <summary class="muted">ver completo</summary>-->
+<!--                                <div class="mono" th:text="${e.userAgent}"></div>-->
+<!--                            </details>-->
+<!--                        </td>-->
+<!--                        <td class="mono" th:text="${#strings.abbreviate(e.sessionId, 8)}"></td>-->
+<!--                    </tr>-->
+<!--                    <tr th:if="${#lists.isEmpty(itemsSesiones)}">-->
+<!--                        <td colspan="10" class="muted">No hay registros para mostrar.</td>-->
+<!--                    </tr>-->
+<!--                    </tbody>-->
+<!--                </table>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--        &lt;!&ndash; ======================================= &ndash;&gt;-->
+<!--        &lt;!&ndash; ===========   CAMBIOS TAB   =========== &ndash;&gt;-->
+<!--        &lt;!&ndash; ======================================= &ndash;&gt;-->
+<!--        <div th:if="${tab=='cambios'}">-->
+<!--            <form class="announcements-section form-grid" th:action="@{/dashboard/admin/auditorias}" method="get">-->
+<!--                <input type="hidden" name="tab" value="cambios"/>-->
+<!--                <div>-->
+<!--                    <label>Usuario</label><br>-->
+<!--                    <input name="user" th:value="${fUser}" placeholder="username contiene...">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Desde (UTC)</label><br>-->
+<!--                    <input name="desde" type="datetime-local" th:value="${fDesde}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Hasta (UTC)</label><br>-->
+<!--                    <input name="hasta" type="datetime-local" th:value="${fHasta}">-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                    <label>Límite</label><br>-->
+<!--                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">-->
+<!--                </div>-->
+<!--                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>-->
+<!--                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='cambios')}"><i class="fas fa-undo"></i> Limpiar</a>-->
+<!--            </form>-->
+
+<!--            <div class="announcements-section" th:if="${fUser != null or fDesde != null or fHasta != null}">-->
+<!--                <div class="chips">-->
+<!--                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>-->
+<!--                    <div class="chip" th:if="${fDesde}"><i class="fas fa-clock"></i>&nbsp;desde: <b th:text="${fDesde}"></b></div>-->
+<!--                    <div class="chip" th:if="${fHasta}"><i class="fas fa-clock"></i>&nbsp;hasta: <b th:text="${fHasta}"></b></div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+<!--            <div class="announcements-section" style="overflow:auto">-->
+<!--                <table class="table">-->
+<!--                    <thead>-->
+<!--                    <tr>-->
+<!--                        <th>Fecha/Hora</th>-->
+<!--                        <th>Objeto</th>-->
+<!--                        <th>Acción</th>-->
+<!--                        <th>Usuario</th>-->
+<!--                        <th>Rol</th>-->
+<!--                        <th>IP</th>-->
+<!--                        <th>Detalle (OLD / NEW)</th>-->
+<!--                    </tr>-->
+<!--                    </thead>-->
+<!--                    <tbody>-->
+<!--                    <tr th:each="e : ${itemsCambios}">-->
+<!--                        <td th:text="${e.fechaHora != null ? #temporals.format(e.fechaHora, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>-->
+<!--                        <td><b th:text="${e.esquema}"></b>.<span th:text="${e.tabla}"></span></td>-->
+<!--                        <td th:text="${e.accion}"></td>-->
+<!--                        <td>-->
+<!--                            <div th:text="${e.username}"></div>-->
+<!--                            <div class="muted" th:text="${e.nombreCompleto}"></div>-->
+<!--                        </td>-->
+<!--                        <td th:text="${e.nombreRol} ?: '-'"></td>-->
+<!--                        <td th:text="${e.ip} ?: '-'"></td>-->
+<!--                        <td>-->
+<!--                            <details th:if="${e.oldRow != null}">-->
+<!--                                <summary>OLD (resumen)</summary>-->
+<!--                                <div class="mono muted" th:text="${#strings.abbreviate(e.oldRow, 200)}"></div>-->
+<!--                                <details>-->
+<!--                                    <summary>ver completo</summary>-->
+<!--                                    <pre class="mono" th:text="${e.oldRow}"></pre>-->
+<!--                                </details>-->
+<!--                            </details>-->
+<!--                            <details th:if="${e.newRow != null}">-->
+<!--                                <summary>NEW (resumen)</summary>-->
+<!--                                <div class="mono" th:text="${#strings.abbreviate(e.newRow, 200)}"></div>-->
+<!--                                <details>-->
+<!--                                    <summary>ver completo</summary>-->
+<!--                                    <pre class="mono" th:text="${e.newRow}"></pre>-->
+<!--                                </details>-->
+<!--                            </details>-->
+<!--                            <span th:if="${e.oldRow == null && e.newRow == null}" class="muted">-</span>-->
+<!--                        </td>-->
+<!--                    </tr>-->
+<!--                    <tr th:if="${#lists.isEmpty(itemsCambios)}">-->
+<!--                        <td colspan="7" class="muted">No hay registros para mostrar.</td>-->
+<!--                    </tr>-->
+<!--                    </tbody>-->
+<!--                </table>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--    </section>-->
+<!--</main>-->
+
+<!--<script th:inline="javascript">-->
+<!--    // Sesión a UI-->
+<!--    const _nombre = /*[[${session.nombreUsuario}]]*/ 'Administrador';-->
+<!--    const _rol = /*[['' + ${session.rol}]]*/ 'ADMIN';-->
+<!--    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);-->
+<!--    if (_rol) sessionStorage.setItem('rol', _rol);-->
+
+<!--    // UI comunes-->
+<!--    const menuToggle = document.getElementById('menuToggle'), sidebar = document.getElementById('sidebar'),-->
+<!--        mainContent = document.getElementById('mainContent');-->
+<!--    const userInfo = document.getElementById('userInfo'), userDropdown = document.getElementById('userDropdown'),-->
+<!--        userName = document.getElementById('userName'), userAvatar = document.getElementById('userAvatar'),-->
+<!--        logoutBtn = document.getElementById('logoutBtn');-->
+<!--    const ini = n => (n || '').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || 'AD';-->
+<!--    menuToggle?.addEventListener('click', () => {-->
+<!--        sidebar.classList.toggle('hidden');-->
+<!--        mainContent.classList.toggle('expanded');-->
+<!--    });-->
+<!--    userInfo?.addEventListener('click', (e) => {-->
+<!--        e.stopPropagation();-->
+<!--        userDropdown.classList.toggle('show');-->
+<!--    });-->
+<!--    document.addEventListener('click', (e) => {-->
+<!--        if (!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show');-->
+<!--    });-->
+<!--    (() => {-->
+<!--        const n = sessionStorage.getItem('nombreUsuario') || 'Administrador';-->
+<!--        userName.textContent = n;-->
+<!--        userAvatar.textContent = ini(n);-->
+<!--    })();-->
+<!--    logoutBtn?.addEventListener('click', async (e) => {-->
+<!--        e.preventDefault();-->
+<!--        try { await fetch('/logout', {method: 'GET', credentials: 'include'}); } catch (_) {}-->
+<!--        sessionStorage.clear();-->
+<!--        window.location.href = '/login';-->
+<!--    });-->
+
+<!--    function showHelp() {-->
+<!--        alert('Auditorías\n\nPestañas:\n• Logins: exitosos y fallidos.\n• Sesiones: tiempo activo (inicio/última actividad/fin y duración).\n• Cambios: INSERT/UPDATE/DELETE con OLD/NEW.\nUsa los filtros de cada pestaña.');-->
+<!--    }-->
+<!--    window.showHelp = showHelp;-->
+
+<!--    function handleResize() {-->
+<!--        if (window.innerWidth <= 768) {-->
+<!--            sidebar.classList.add('hidden');-->
+<!--            mainContent.classList.add('expanded');-->
+<!--        } else {-->
+<!--            sidebar.classList.remove('hidden');-->
+<!--            mainContent.classList.remove('expanded');-->
+<!--        }-->
+<!--    }-->
+<!--    handleResize();-->
+<!--    window.addEventListener('resize', handleResize);-->
+<!--</script>-->
+
+<!--&lt;!&ndash; === Script client-info (sin cambios funcionales) === &ndash;&gt;-->
+<!--<script>-->
+<!--    (async function sendClientInfo() {-->
+<!--        try {-->
+<!--            const ua = navigator.userAgent || '';-->
+<!--            let uaHints = {};-->
+<!--            if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {-->
+<!--                try {-->
+<!--                    uaHints = await navigator.userAgentData.getHighEntropyValues([-->
+<!--                        "architecture", "model", "platform", "platformVersion", "uaFullVersion", "bitness", "fullVersionList"-->
+<!--                    ]);-->
+<!--                } catch (e) {}-->
+<!--            }-->
+<!--            let ipPublic = null;-->
+<!--            try {-->
+<!--                const r = await fetch('https://api.ipify.org?format=json', {cache: 'no-store'});-->
+<!--                if (r.ok) { ipPublic = (await r.json()).ip; }-->
+<!--            } catch (e) {}-->
+<!--            let ipLocal = null;-->
+<!--            try {-->
+<!--                const pc = new RTCPeerConnection({iceServers: [{urls: "stun:stun.l.google.com:19302"}]});-->
+<!--                pc.createDataChannel("x");-->
+<!--                const offer = await pc.createOffer();-->
+<!--                await pc.setLocalDescription(offer);-->
+<!--                await new Promise(resolve => {-->
+<!--                    pc.onicecandidate = (ice) => {-->
+<!--                        if (!ice || !ice.candidate) return;-->
+<!--                        const cand = ice.candidate.candidate;-->
+<!--                        const m = cand.match(/((25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3})/);-->
+<!--                        if (m) {-->
+<!--                            ipLocal = m[1];-->
+<!--                            try { pc.close(); } catch {}-->
+<!--                            resolve();-->
+<!--                        }-->
+<!--                    };-->
+<!--                    setTimeout(() => { try { pc.close(); } catch {} resolve(); }, 900);-->
+<!--                });-->
+<!--            } catch (e) {}-->
+
+<!--            await fetch('/client-info', {-->
+<!--                method: 'POST',-->
+<!--                headers: {'Content-Type': 'application/json'},-->
+<!--                credentials: 'include',-->
+<!--                body: JSON.stringify({ua, uaHints, ipPublic, ipLocal})-->
+<!--            });-->
+<!--        } catch (e) {-->
+<!--            console.warn('client-info failed', e);-->
+<!--        }-->
+<!--    })();-->
+<!--</script>-->
+<!--&lt;!&ndash;refrescar página&ndash;&gt;-->
+<!--<script>-->
+<!--    (function oneTimeReloadPerAuditoriaTab() {-->
+<!--        // 1) Solo actúa en auditorías-->
+<!--        if (!window.location.pathname.includes("/dashboard/admin/auditorias")) return;-->
+
+<!--        // 2) Detectar el tab actual-->
+<!--        const params = new URLSearchParams(window.location.search);-->
+<!--        const tab = (params.get("tab") || "logins").toLowerCase();-->
+
+<!--        // 3) Clave única en sessionStorage-->
+<!--        const key = `audReload:${window.location.pathname}:${tab}`;-->
+
+<!--        // 4) Recargar una sola vez por cada tab-->
+<!--        if (!sessionStorage.getItem(key)) {-->
+<!--            sessionStorage.setItem(key, "true");-->
+<!--            window.location.reload();-->
+<!--        }-->
+<!--    })();-->
+<!--</script>-->
+
+<!--</body>-->
+<!--</html>-->
+
+
+
+<!-- nuevo html aplicado -->
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Auditorías</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+
+    <style>
+        /* Filtros */
+        .form-grid{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+        .form-grid label{font-size:.95rem;color:#6b7280}
+        .form-grid input,.form-grid select{padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+
+        /* Chips */
+        .chips{display:flex;gap:8px;flex-wrap:wrap}
+        .chip{background:#F1F5F9;color:#334155;border-radius:999px;padding:6px 12px;font-size:.9rem}
+
+        /* Tabla */
+        .table{width:100%;border-collapse:collapse}
+        .table th,.table td{padding:12px 10px;border-bottom:1px solid var(--border-light);text-align:left;vertical-align:top}
+        .table thead th{background:#F9FAF7;color:#334155;font-weight:600}
+        .muted{color:#6b7280}
+        .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;white-space:pre-wrap}
+        details{background:#F8FAFC;border:1px solid #e5e7eb;border-radius:10px;padding:6px 10px}
+        summary{cursor:pointer;font-weight:600;color:#334155}
+
+        /* Tabs */
+        .tabs{display:flex;gap:8px;margin-bottom:12px}
+        .tab{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border-light);border-radius:10px;background:#fff;color:#334155;text-decoration:none}
+        .tab.active{background:#111827;color:#fff;border-color:#111827}
+
+        .hidden{display:none}
+    </style>
+</head>
+<body>
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-desktop"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/admin/laboratorios}" class="nav-item"><i class="fas fa-building"></i> Laboratorios</a>
+        <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+        <a th:href="@{/dashboard/admin/auditorias(tab=${tab})}" class="nav-item active"><i class="fas fa-search"></i> Auditorías</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="showHelp()"><i class="fas fa-question-circle"></i> Ayuda</button>
+    </div>
+</aside>
+
+<!-- ===== Main ===== -->
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">AD</div>
+                <span id="userName">Administrador</span><i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-search"></i> Auditorías</h1>
+
+        <!-- ===== Tabs ===== -->
+        <div class="announcements-section tabs">
+            <a class="tab" th:classappend="${tab=='logins'} ? ' active'" th:href="@{/dashboard/admin/auditorias(tab='logins')}"><i class="fas fa-sign-in-alt"></i> Logins</a>
+            <a class="tab" th:classappend="${tab=='sesiones'} ? ' active'" th:href="@{/dashboard/admin/auditorias(tab='sesiones')}"><i class="fas fa-clock"></i> Sesiones</a>
+            <a class="tab" th:classappend="${tab=='cambios'} ? ' active'" th:href="@{/dashboard/admin/auditorias(tab='cambios')}"><i class="fas fa-pen"></i> Cambios</a>
+        </div>
+
+        <!-- ============== LOGINS ============== -->
+        <div th:if="${tab=='logins'}">
+            <form id="loginFilters" class="announcements-section form-grid"
+                  th:action="@{/dashboard/admin/auditorias}" method="get"
+                  onsubmit="return stripEmptyFields(this)">
+                <input type="hidden" name="tab" value="logins"/>
+
+                <div>
+                    <label>Usuario</label><br>
+                    <input id="userInput" name="user" th:value="${fUser}" placeholder="username contiene...">
+                </div>
+
+                <!-- ===== ROL (COMENTADO) ===== -->
+                <!--
+                <div>
+                    <label>Rol</label><br>
+                    <select name="rol" id="rolSelect">
+                        <option value="" th:selected="${fRol == null}">(todos)</option>
+                        <option value="administrador" th:selected="${fRol == 'administrador' || fRol == 'Administrador'}">administrador</option>
+                        <option value="coordinador"  th:selected="${fRol == 'coordinador'  || fRol == 'Coordinador'}">coordinador</option>
+                        <option value="docente"      th:selected="${fRol == 'docente'      || fRol == 'Docente'}">docente</option>
+                        <option value="estudiante"   th:selected="${fRol == 'estudiante'   || fRol == 'Estudiante'}">estudiante</option>
+                    </select>
+                </div>
+                -->
+
+                <div>
+                    <label>OK</label><br>
+                    <select name="ok" id="okSelect">
+                        <option value="" th:selected="${fOk == null}">(todos)</option>
+                        <option th:value="${true}"  th:selected="${fOk == true}">Correcto</option>
+                        <option th:value="${false}" th:selected="${fOk == false}">Fallido</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Límite</label><br>
+                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">
+                </div>
+
+                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='logins')}"
+                   style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">
+                    <i class="fas fa-undo"></i> Limpiar
+                </a>
+            </form>
+
+            <!-- Chips (rol comentado) -->
+            <div class="announcements-section"
+                 th:if="${fUser != null or fOk != null}">
+                <div class="chips">
+                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>
+                    <!--
+                    <div class="chip" th:if="${fRol}">
+                        <i class="fas fa-id-badge"></i>&nbsp;rol:
+                        <b th:text="${fRol}"></b>
+                    </div>
+                    -->
+                    <div class="chip" th:if="${fOk != null}"><i class="fas fa-check-circle"></i>&nbsp;ok: <b th:text="${fOk}"></b></div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="announcements-section" style="overflow:auto">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Usuario</th>
+                        <th>OK</th>
+                        <!-- <th>Rol</th>  COMENTADO -->
+                        <!-- <th>DB Role</th> oculto -->
+                        <th>IP</th>
+                        <th>Navegador</th>
+                        <th>S.O.</th>
+                        <th>Dispositivo</th>
+                        <th>User-Agent</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="e : ${itemsLogins}">
+                        <td th:text="${e.fechaHora != null ? #temporals.format(e.fechaHora, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>
+                        <td>
+                            <div th:text="${e.username}"></div>
+                            <div class="muted" th:text="${e.nombreCompleto}"></div>
+                        </td>
+                        <td th:text="${e.ok}"></td>
+                        <!-- <td th:text="${e.nombreRol}"></td>  COMENTADO -->
+                        <td th:text="${e.ip} ?: '-'"></td>
+
+                        <!-- Navegador -->
+                        <td th:text="${#strings.containsIgnoreCase(e.userAgent,'Edg/') ? 'Microsoft Edge' :
+                           (#strings.containsIgnoreCase(e.userAgent,'OPR/') ? 'Opera' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Firefox/') ? 'Firefox' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Chrome/') && !#strings.containsIgnoreCase(e.userAgent,'Chromium') ? 'Chrome' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Safari') && !#strings.containsIgnoreCase(e.userAgent,'Chrome') ? 'Safari' : '-'))))}"></td>
+
+                        <!-- S.O. -->
+                        <td th:text="${#strings.containsIgnoreCase(e.userAgent,'Windows') ? 'Windows' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Mac OS X') ? 'macOS' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Linux') ? 'Linux' :
+                           (#strings.containsIgnoreCase(e.userAgent,'Android') ? 'Android' :
+                           (#strings.containsIgnoreCase(e.userAgent,'iPhone') || #strings.containsIgnoreCase(e.userAgent,'iPad') ? 'iOS' : '-'))))}"></td>
+
+                        <!-- Dispositivo -->
+                        <td th:text="${#strings.containsIgnoreCase(e.userAgent,'Android') || #strings.containsIgnoreCase(e.userAgent,'iPhone') || #strings.containsIgnoreCase(e.userAgent,'iPad') ? 'mobile' : 'desktop'}"></td>
+
+                        <td class="mono" th:text="${e.userAgent}"></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(itemsLogins)}">
+                        <td colspan="8" class="muted">No hay registros para mostrar.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============== SESIONES ============== -->
+        <div th:if="${tab=='sesiones'}">
+            <form class="announcements-section form-grid"
+                  th:action="@{/dashboard/admin/auditorias}" method="get"
+                  onsubmit="return stripEmptyFields(this)">
+                <input type="hidden" name="tab" value="sesiones"/>
+                <div>
+                    <label>Usuario</label><br>
+                    <input name="user" th:value="${fUser}" placeholder="username contiene...">
+                </div>
+                <div>
+                    <label>Desde (UTC)</label><br>
+                    <input name="desde" type="datetime-local" th:value="${fDesde}">
+                </div>
+                <div>
+                    <label>Hasta (UTC)</label><br>
+                    <input name="hasta" type="datetime-local" th:value="${fHasta}">
+                </div>
+                <div>
+                    <label>Límite</label><br>
+                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">
+                </div>
+                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='sesiones')}"><i class="fas fa-undo"></i> Limpiar</a>
+            </form>
+
+            <div class="announcements-section" th:if="${fUser != null or fDesde != null or fHasta != null}">
+                <div class="chips">
+                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>
+                    <div class="chip" th:if="${fDesde}"><i class="fas fa-clock"></i>&nbsp;desde: <b th:text="${fDesde}"></b></div>
+                    <div class="chip" th:if="${fHasta}"><i class="fas fa-clock"></i>&nbsp;hasta: <b th:text="${fHasta}"></b></div>
+                </div>
+            </div>
+
+            <div class="announcements-section" style="overflow:auto">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Inicio</th>
+                        <th>Última actividad</th>
+                        <th>Fin</th>
+                        <th>Activa</th>
+                        <th>Duración</th>
+                        <th>Usuario</th>
+                        <!-- <th>Rol</th>  COMENTADO -->
+                        <!-- <th>DB Role</th> oculto -->
+                        <th>IP</th>
+                        <th>User-Agent</th>
+                        <th>Session ID</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="e : ${itemsSesiones}">
+                        <td th:text="${e.startAt != null ? #temporals.format(e.startAt, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>
+                        <td th:text="${e.lastSeen != null ? #temporals.format(e.lastSeen, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>
+                        <td th:text="${e.endAt != null ? #temporals.format(e.endAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></td>
+                        <td th:text="${e.activa}"></td>
+                        <td>
+                            <span th:text="${(e.duracionSeg != null ? (e.duracionSeg/60) : 0)}"></span> min
+                            <span class="muted">(</span><span th:text="${e.duracionSeg}"></span><span class="muted"> s)</span>
+                        </td>
+                        <td th:text="${e.username}"></td>
+                        <!-- <td th:text="${e.nombreRol}"></td>  COMENTADO -->
+                        <!-- <td th:text="${e.dbRole} ?: '-'"></td> -->
+                        <td th:text="${e.ip ?: '-'}"></td>
+                        <td>
+                            <div class="muted" th:text="${#strings.abbreviate(e.userAgent, 50)}"></div>
+                            <details>
+                                <summary class="muted">ver completo</summary>
+                                <div class="mono" th:text="${e.userAgent}"></div>
+                            </details>
+                        </td>
+                        <td class="mono" th:text="${#strings.abbreviate(e.sessionId, 8)}"></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(itemsSesiones)}">
+                        <td colspan="10" class="muted">No hay registros para mostrar.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============== CAMBIOS ============== -->
+        <div th:if="${tab=='cambios'}">
+            <form class="announcements-section form-grid"
+                  th:action="@{/dashboard/admin/auditorias}" method="get"
+                  onsubmit="return stripEmptyFields(this)">
+                <input type="hidden" name="tab" value="cambios"/>
+                <div>
+                    <label>Usuario</label><br>
+                    <input name="user" th:value="${fUser}" placeholder="username contiene...">
+                </div>
+                <div>
+                    <label>Desde (UTC)</label><br>
+                    <input name="desde" type="datetime-local" th:value="${fDesde}">
+                </div>
+                <div>
+                    <label>Hasta (UTC)</label><br>
+                    <input name="hasta" type="datetime-local" th:value="${fHasta}">
+                </div>
+                <div>
+                    <label>Límite</label><br>
+                    <input name="limit" type="number" min="1" max="1000" th:value="${fLimit?:200}" style="width:120px">
+                </div>
+                <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+                <a class="btn" th:href="@{/dashboard/admin/auditorias(tab='cambios')}"><i class="fas fa-undo"></i> Limpiar</a>
+            </form>
+
+            <div class="announcements-section" th:if="${fUser != null or fDesde != null or fHasta != null}">
+                <div class="chips">
+                    <div class="chip" th:if="${fUser}"><i class="fas fa-user"></i>&nbsp;user: <b th:text="${fUser}"></b></div>
+                    <div class="chip" th:if="${fDesde}"><i class="fas fa-clock"></i>&nbsp;desde: <b th:text="${fDesde}"></b></div>
+                    <div class="chip" th:if="${fHasta}"><i class="fas fa-clock"></i>&nbsp;hasta: <b th:text="${fHasta}"></b></div>
+                </div>
+            </div>
+
+            <div class="announcements-section" style="overflow:auto">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Objeto</th>
+                        <th>Acción</th>
+                        <th>Usuario</th>
+                        <!-- <th>Rol</th>  COMENTADO -->
+                        <th>IP</th>
+                        <th>Detalle (OLD / NEW)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="e : ${itemsCambios}">
+                        <td th:text="${e.fechaHora != null ? #temporals.format(e.fechaHora, 'yyyy-MM-dd HH:mm:ss') : ''}"></td>
+                        <td><b th:text="${e.esquema}"></b>.<span th:text="${e.tabla}"></span></td>
+                        <td th:text="${e.accion}"></td>
+                        <td>
+                            <div th:text="${e.username}"></div>
+                            <div class="muted" th:text="${e.nombreCompleto}"></div>
+                        </td>
+                        <!-- <td th:text="${e.nombreRol} ?: '-'"></td>  COMENTADO -->
+                        <td th:text="${e.ip ?: '-'}"></td>
+                        <td>
+                            <details th:if="${e.oldRow != null}">
+                                <summary>OLD (resumen)</summary>
+                                <div class="mono muted" th:text="${#strings.abbreviate(e.oldRow, 200)}"></div>
+                                <details>
+                                    <summary>ver completo</summary>
+                                    <pre class="mono" th:text="${e.oldRow}"></pre>
+                                </details>
+                            </details>
+                            <details th:if="${e.newRow != null}">
+                                <summary>NEW (resumen)</summary>
+                                <div class="mono" th:text="${#strings.abbreviate(e.newRow, 200)}"></div>
+                                <details>
+                                    <summary>ver completo</summary>
+                                    <pre class="mono" th:text="${e.newRow}"></pre>
+                                </details>
+                            </details>
+                            <span th:if="${e.oldRow == null && e.newRow == null}" class="muted">-</span>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(itemsCambios)}">
+                        <td colspan="6" class="muted">No hay registros para mostrar.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+<script th:inline="javascript">
+    // Sesión a UI
+    const _nombre = /*[[${session.nombreUsuario}]]*/ 'Administrador';
+    const _rol    = /*[['' + ${session.rol}]]*/ 'ADMIN';
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+
+    // UI comunes
+    const menuToggle=document.getElementById('menuToggle'),sidebar=document.getElementById('sidebar'),mainContent=document.getElementById('mainContent');
+    const userInfo=document.getElementById('userInfo'),userDropdown=document.getElementById('userDropdown'),userName=document.getElementById('userName'),userAvatar=document.getElementById('userAvatar'),logoutBtn=document.getElementById('logoutBtn');
+    const ini=n=>(n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'AD';
+    menuToggle?.addEventListener('click',()=>{sidebar.classList.toggle('hidden');mainContent.classList.toggle('expanded');});
+    userInfo?.addEventListener('click',(e)=>{e.stopPropagation();userDropdown.classList.toggle('show');});
+    document.addEventListener('click',(e)=>{if(!userDropdown.contains(e.target)&&!userInfo.contains(e.target))userDropdown.classList.remove('show');});
+    (function(){const n=sessionStorage.getItem('nombreUsuario')||'Administrador';userName.textContent=n;userAvatar.textContent=ini(n);})();
+    logoutBtn?.addEventListener('click',async (e)=>{e.preventDefault();try{await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}sessionStorage.clear();window.location.href='/login';});
+
+    function showHelp(){alert('Auditorías\n\nPestañas:\n• Logins: exitosos y fallidos.\n• Sesiones: tiempo activo (inicio/última actividad/fin y duración).\n• Cambios: INSERT/UPDATE/DELETE con OLD/NEW.\nUsa los filtros de cada pestaña.');}
+    window.showHelp=showHelp;
+
+    function handleResize(){if(window.innerWidth<=768){sidebar.classList.add('hidden');mainContent.classList.add('expanded');}else{sidebar.classList.remove('hidden');mainContent.classList.remove('expanded');}}
+    handleResize();window.addEventListener('resize',handleResize);
+</script>
+
+<script>
+    // Envío: deshabilita campos vacíos para no mandar ""
+    function stripEmptyFields(form){
+        const els=form.querySelectorAll('input,select,textarea');
+        els.forEach(el=>{
+            if(!el.name) return;
+            if(el.disabled) return;
+            const v=(el.value??'').toString().trim();
+            if(v==='') el.disabled=true;
+        });
+        return true;
+    }
+</script>
+
+<!-- === Script client-info (sin cambios funcionales) === -->
+<script>
+    (async function sendClientInfo(){
+        try{
+            const ua=navigator.userAgent||'';
+            let uaHints={};
+            if(navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues){
+                try{uaHints=await navigator.userAgentData.getHighEntropyValues(["architecture","model","platform","platformVersion","uaFullVersion","bitness","fullVersionList"]);}catch(e){}
+            }
+            let ipPublic=null;
+            try{const r=await fetch('https://api.ipify.org?format=json',{cache:'no-store'});if(r.ok){ipPublic=(await r.json()).ip;}}catch(e){}
+            let ipLocal=null;
+            try{
+                const pc=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
+                pc.createDataChannel("x"); const offer=await pc.createOffer(); await pc.setLocalDescription(offer);
+                await new Promise(res=>{pc.onicecandidate=(ice)=>{if(!ice||!ice.candidate)return;const m=ice.candidate.candidate.match(/((25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3})/);if(m){ipLocal=m[1];try{pc.close();}catch{}res();}};setTimeout(()=>{try{pc.close();}catch{}res();},900);});
+            }catch(e){}
+            await fetch('/client-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({ua,uaHints,ipPublic,ipLocal})});
+        }catch(e){console.warn('client-info failed',e);}
+    })();
+</script>
+</body>
+</html>
+
+

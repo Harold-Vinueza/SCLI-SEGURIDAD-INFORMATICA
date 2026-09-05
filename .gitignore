@@ -1,0 +1,31 @@
+# Archivos de compilación
+target/
+out/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+*.class
+*.log
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Maven Wrapper
+.mvn/
+mvnw
+mvnw.cmd
+
+# Sonar / análisis estático
+.scannerwork/
+sonar-project.properties
+
+# Archivos temporales
+*.tmp
+*.swp
+*.bak
+
+# Subidas o recursos que no quieras versionar
+uploads/

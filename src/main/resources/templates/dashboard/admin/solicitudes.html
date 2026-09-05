@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <title>Solicitudes (Docentes)</title>
+
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+    <!-- Tema global -->
+    <link rel="stylesheet"
+          th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+          href="/css/admin.css"/>
+
+    <style>
+        .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 18px;flex-wrap:wrap}
+        .toolbar select,.toolbar input[type="text"]{padding:.55rem .7rem;border:1px solid #e5e7eb;border-radius:10px}
+        .table{width:100%;border-collapse:collapse}
+        .table th,.table td{padding:12px 10px;border-bottom:1px solid var(--border-light);text-align:left;vertical-align:top}
+        .table thead th{background:#F9FAF7;color:#334155;font-weight:600;position:sticky;top:0;z-index:2}
+        .badge{padding:.15rem .6rem;border-radius:999px;font-size:.8rem;background:#eef5ff;color:#1f4fbf}
+        .actions button{margin-right:.35rem}
+
+        .chips{display:flex;flex-wrap:wrap;gap:6px}
+        .chip{display:inline-flex;align-items:center;gap:6px;padding:.25rem .5rem;border-radius:999px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.8rem}
+        .chip .t{font-weight:600}
+        .chip .h{opacity:.8}
+
+        dialog{border:none;border-radius:14px;max-width:900px;width:96%;padding:0;box-shadow:0 10px 40px rgba(0,0,0,.25);max-height:90vh;overflow:auto}
+        dialog[open]{position:fixed;inset:0;margin:auto;z-index:1100}
+        dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+        dialog header{padding:14px 18px;border-bottom:1px solid #eee;font-weight:600}
+        dialog form{padding:16px 18px}
+        dialog form input,dialog form select,dialog textarea{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+        dialog footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #eee}
+        .busy{opacity:.6;pointer-events:none}
+
+        .pill{display:inline-block;padding:.1rem .5rem;border-radius:999px;font-size:.75rem;border:1px solid #e5e7eb}
+        .pill.ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+        .pill.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+
+        .grid-wrap{overflow:auto;border:1px solid #e5e7eb;border-radius:12px}
+        .sched{border-collapse:separate;border-spacing:0;width:100%}
+        .sched th,.sched td{border-bottom:1px solid #eee;border-right:1px solid #eee;padding:8px;vertical-align:top}
+        .sched thead th{background:#f5f7f9;position:sticky;top:0;z-index:2}
+        .sched th:first-child{background:#fafafa;position:sticky;left:0;z-index:3}
+        .slot{min-width:140px;min-height:64px;border-radius:10px;padding:6px;cursor:pointer}
+        .slot.empty{background:transparent;cursor:default}
+        .slot .t{font-size:.78rem;color:#64748b}
+        .slot .n{font-weight:600}
+        .slot.available{background:#f0fdf4;color:#166534}
+        .slot.busy{background:#fff5f5;color:#991b1b}
+        .slot.available:hover{outline:2px solid #86efac}
+        .slot.selected{outline:3px solid #2563eb !important}
+        .row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    </style>
+</head>
+<body>
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-desktop"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/admin/horarios}" class="nav-item"><i class="fas fa-calendar-alt"></i> Horarios</a>
+        <a th:href="@{/dashboard/admin/admin-usuarios}" class="nav-item"><i class="fas fa-users"></i> Gestión de Usuarios</a>
+        <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+        <a th:href="@{/dashboard/admin/auditorias}" class="nav-item"><i class="fas fa-search"></i> Auditorías</a>
+        <a th:href="@{/dashboard/admin/solicitudes}" class="nav-item active"><i class="fas fa-file-alt"></i> Solicitudes</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('Revisa, aprueba, rechaza o propone alternativas por grupos (lote o docente+materia+jornada).')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<!-- ===== Main ===== -->
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>
+
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">AD</div>
+                <span id="userName">Administrador</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-file-alt"></i> Solicitudes de reserva (Docentes)</h1>
+
+        <!-- Toolbar -->
+        <div class="announcements-section">
+            <div class="toolbar">
+                <label>Estado
+                    <select id="fEstado">
+                        <option selected>Pendiente</option>
+                        <option>Revisión</option>
+                        <option>Aprobada</option>
+                        <option>Rechazada</option>
+                        <option>Expirada</option>
+                    </select>
+                </label>
+                <button class="btn" id="btnRefrescar" type="button"><i class="fas fa-rotate"></i> Refrescar</button>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="announcements-section" style="padding:0">
+            <div style="overflow:auto">
+                <table id="tabla" class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Docente</th>
+                        <th>Materia</th>
+                        <th>Jornada</th>
+                        <th>Bloques (día / hora)</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ===== Modales ===== -->
+
+<!-- Aprobar (grupo) -->
+<dialog id="dlgAprobar">
+    <header>Aprobar grupo de solicitud</header>
+    <form id="frmAprobar" onsubmit="return false">
+        <input type="hidden" name="grupoId">
+        <label>Laboratorio
+            <select id="selLab" required disabled>
+                <option value="" disabled selected>Cargando laboratorios...</option>
+            </select>
+            <input type="hidden" name="idLaboratorio" id="idLaboratorioHidden">
+        </label>
+
+        <div id="labInfo" style="margin-top:12px;display:none;border:1px solid #eee;border-radius:10px;padding:10px">
+            <div><strong>Capacidad:</strong> <span id="labCap"></span></div>
+            <div><strong>Estado:</strong> <span id="labEst"></span></div>
+            <div><strong>Piso:</strong> <span id="labPiso"></span></div>
+            <div><strong>Disponibilidad en todos los bloques:</strong> <span id="labDisp" class="pill"></span></div>
+            <div id="labMsg" class="hint" style="display:none"></div>
+        </div>
+
+        <div class="hint"><i class="fas fa-info-circle"></i> Solo podrás aprobar cuando el laboratorio esté libre en <b>todas</b> las horas del grupo.</div>
+    </form>
+    <footer>
+        <button type="button" class="btn" onclick="document.getElementById('dlgAprobar').close()">Cancelar</button>
+        <button class="btn" id="btnConfirmAprobar" type="button" disabled><i class="fas fa-check"></i> Aprobar grupo</button>
+    </footer>
+</dialog>
+
+<!-- Rechazar (grupo) -->
+<dialog id="dlgRechazar">
+    <header>Rechazar grupo de solicitud</header>
+    <form id="frmRechazar" onsubmit="return false">
+        <input type="hidden" name="grupoId">
+        <label>Motivo (opcional)
+            <input name="motivo" placeholder="Explique el motivo"/>
+        </label>
+    </form>
+    <footer>
+        <button type="button" class="btn" onclick="document.getElementById('dlgRechazar').close()">Cancelar</button>
+        <button class="btn btn-danger" id="btnConfirmRechazar" type="button">
+            <i class="fas fa-times"></i> Rechazar grupo
+        </button>
+    </footer>
+</dialog>
+
+<!-- Proponer (grupo) -->
+<dialog id="dlgProponer">
+    <header>Proponer alternativa al grupo</header>
+    <form id="frmProponer" onsubmit="return false">
+        <input type="hidden" name="grupoId">
+        <div class="row-2">
+            <label>Jornada
+                <select id="selJornada">
+                    <option value="Matutina" selected>Matutina</option>
+                    <option value="Vespertina">Vespertina</option>
+                </select>
+            </label>
+            <label>Laboratorio
+                <select id="selLabProp" required disabled>
+                    <option value="" disabled selected>Cargando laboratorios...</option>
+                </select>
+                <input type="hidden" name="idLaboratorio" id="idLaboratorioPropHidden">
+            </label>
+        </div>
+
+        <div class="hint" style="margin-top:8px">
+            Selecciona bloques disponibles en la grilla. Debes elegir la misma cantidad de bloques que el grupo.
+        </div>
+
+        <div id="schedWrap" class="grid-wrap" style="margin-top:10px">
+            <table class="sched" id="schedTbl">
+                <thead>
+                <tr>
+                    <th style="width:110px">Hora</th>
+                    <th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+                </tr>
+                </thead>
+                <tbody id="schedBody">
+                <tr><td colspan="6" style="padding:20px;text-align:center">Cargando horarios…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <label style="margin-top:12px">Mensaje al docente (opcional)
+            <input name="mensaje" id="msgProp" placeholder="Ej.: El lab solicitado está ocupado, propongo..."/>
+        </label>
+    </form>
+    <footer>
+        <button type="button" class="btn" onclick="document.getElementById('dlgProponer').close()">Cancelar</button>
+        <button class="btn" id="btnConfirmProponer" type="button" disabled>
+            <i class="fas fa-paper-plane"></i> Enviar propuesta
+        </button>
+    </footer>
+</dialog>
+
+<!-- ===== NUEVO: Modal de confirmación para aprobar propuesta ===== -->
+<dialog id="dlgConfirmProp">
+    <header>Aprobar propuesta del docente</header>
+    <div class="content" style="padding:16px 18px">
+        <div id="confPropBody" class="hint" style="white-space:pre-line"></div>
+    </div>
+    <footer>
+        <button type="button" class="btn" id="btnCancelConfProp">Cancelar</button>
+        <button type="button" class="btn" id="btnOkConfProp"><i class="fas fa-check"></i> Aprobar</button>
+    </footer>
+</dialog>
+
+<!-- ===== NUEVO: Modal genérico de error/aviso ===== -->
+<dialog id="dlgError">
+    <header id="errTitle">Aviso</header>
+    <div class="content">
+        <p id="errBody" style="white-space:pre-line;margin:0"></p>
+    </div>
+    <footer>
+        <button type="button" class="btn" id="errOk">Aceptar</button>
+    </footer>
+</dialog>
+
+<!-- ===== Sesión a UI ===== -->
+<script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+</script>
+
+<!-- ===== Lógica ===== -->
+<script>
+    // Utils
+    async function getJSON(url){
+        const res = await fetch(`${url}${url.includes('?')?'&':'?'}_=${Date.now()}`, {credentials:'include'});
+        if(!res.ok){ throw new Error('HTTP '+res.status); }
+        return res.json();
+    }
+    async function postJSON(url, body) {
+        const full = `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+        const res = await fetch(full, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            credentials: 'include',
+            body: JSON.stringify(body ?? {})
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(()=> '');
+            throw new Error(`HTTP ${res.status}${text ? ' – ' + text : ''}`);
+        }
+        return res;
+    }
+    const H = t => t ? String(t).slice(0,5) : '-';
+    const badge = e => `<span class="badge">${e||'-'}</span>`;
+
+    // ====== NUEVO: utilidades para modal de error ======
+    function showErrorModal(title, message){
+        const dlg = document.getElementById('dlgError');
+        document.getElementById('errTitle').textContent = title || 'Aviso';
+        document.getElementById('errBody').textContent   = message || '';
+        const ok = document.getElementById('errOk');
+
+        const cleanup = ()=>{
+            ok.removeEventListener('click', onOk);
+            dlg.removeEventListener('cancel', onCancel);
+        };
+        const onOk = ()=>{ dlg.close(); cleanup(); };
+        const onCancel = ()=>{ dlg.close(); cleanup(); };
+
+        ok.addEventListener('click', onOk);
+        dlg.addEventListener('cancel', onCancel);
+        dlg.showModal();
+    }
+    function parseJsonFromErrMessage(msg){
+        try{
+            const i = msg.indexOf('{');
+            const j = msg.lastIndexOf('}');
+            if(i>=0 && j>i){ return JSON.parse(msg.slice(i, j+1)); }
+        }catch(_){}
+        return null;
+    }
+    function handleApiError(err, tituloDefault){
+        const obj = parseJsonFromErrMessage(err.message || '');
+        const detalle = obj?.detalle || obj?.mensaje || 'Ocurrió un error.';
+        const esChoque = String(detalle).toLowerCase().includes('choque de docente');
+        const extra = esChoque
+            ? '\n\nSugerencia:\n• Seleccione otro bloque horario\n• O envíe una propuesta con horarios distintos.'
+            : '';
+        showErrorModal(tituloDefault || 'Aviso', `${detalle}${extra}`);
+    }
+
+    // Header/Sidebar global
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+    const ini = n => (n||'').trim().split(/\s+/,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); location.href='/login'; });
+
+    (function(){
+        const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+        if(rol!=='administrador'&&rol!=='admin'){ alert('Acceso no autorizado'); location.href='/login'; }
+    })();
+
+    // ===== Tabla principal (AGRUPADA) =====
+    async function cargar(){
+        const est = document.getElementById('fEstado').value;
+        const tbody = document.querySelector('#tabla tbody');
+        tbody.innerHTML = '<tr><td colspan="7">Cargando...</td></tr>';
+        try{
+            const data = await getJSON(`/api/admin/solicitudes?estado=${encodeURIComponent(est)}`);
+            if(!Array.isArray(data) || data.length===0){
+                tbody.innerHTML = '<tr><td colspan="7">Sin resultados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map((g,i)=>{
+                const chips = (g.bloques||[]).map(b =>
+                    `<span class="chip"><span class="t">${b.diaSemana}</span><span class="h">${H(b.horaInicio)}–${H(b.horaFin)}</span></span>`
+                ).join(' ');
+                return `
+            <tr>
+              <td>${i+1}</td>
+              <td>${g.docente ?? '-'}</td>
+              <td>${g.materia ?? '-'}</td>
+              <td>${g.jornada ?? '-'}</td>
+              <td><div class="chips">${chips}</div></td>
+              <td>${badge(g.estado)}</td>
+              <td class="actions">
+                <button class="btn" type="button" data-act="aprobar-grupo" data-id="${g.grupoId}">
+                  <i class="fas fa-check"></i> Aprobar
+                </button>
+                <button class="btn btn-danger" type="button" data-act="rechazar-grupo" data-id="${g.grupoId}">
+                  <i class="fas fa-times"></i> Rechazar
+                </button>
+                <button class="btn" type="button" data-act="proponer-grupo" data-id="${g.grupoId}">
+                  <i class="fas fa-paper-plane"></i> Proponer
+                </button>
+              </td>
+            </tr>`;
+            }).join('');
+        }catch(err){
+            console.error('Error al cargar:', err);
+            tbody.innerHTML = `<tr><td colspan="7">Error: ${err.message}</td></tr>`;
+        }
+    }
+
+    document.querySelector('#tabla tbody').addEventListener('click', (ev)=>{
+        const btn = ev.target.closest('button[data-act]');
+        if(!btn) return;
+        const id  = btn.dataset.id;
+        const act = btn.dataset.act;
+        if (act === 'aprobar-grupo')   decidirAprobacion(id);
+        if (act === 'rechazar-grupo')  abrirRechazarGrupo(id);
+        if (act === 'proponer-grupo')  abrirProponerGrupo(id);
+    });
+
+    // ==== Lógica "aprobar por propuesta" (si existe propuesta aceptada) ====
+    async function tienePropuestaCompleta(grupoId){
+        try{
+            const r = await getJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/tiene-propuesta`);
+            return (r && r.ok) ? r : null;
+        }catch{ return null; }
+    }
+
+    // ===== NUEVO: modal de confirmación para aprobar propuesta
+    async function confirmarAprobacionPropuesta(det){
+        return new Promise((resolve)=>{
+            const dlg  = document.getElementById('dlgConfirmProp');
+            const body = document.getElementById('confPropBody');
+            const ok   = document.getElementById('btnOkConfProp');
+            const cancel = document.getElementById('btnCancelConfProp');
+
+            const horarios = Array.isArray(det.horarios) ? det.horarios : [];
+            const lines = horarios.map(h=>{
+                const dia = h.dia || h.diaSemana || '-';
+                const ini = String(h.horaInicio || h.ini || '').slice(0,5);
+                const fin = String(h.horaFin || h.fin || '').slice(0,5);
+                return `• ${dia} ${ini}–${fin}`;
+            });
+
+            body.textContent =
+                `Se detectó una propuesta aceptada por el docente.\n\n` +
+                `Laboratorio: ${det.laboratorio || '-'}\n` +
+                `Bloques:\n` + (lines.length ? lines.join('\n') : '• (sin detalle)') +
+                `\n\n¿Deseas aprobarla directamente?`;
+
+            function clean(res){
+                ok.removeEventListener('click', onOk);
+                cancel.removeEventListener('click', onCancel);
+                dlg.removeEventListener('cancel', onCancel);
+                dlg.close();
+                resolve(res);
+            }
+            function onOk(){ clean(true); }
+            function onCancel(){ clean(false); }
+
+            ok.addEventListener('click', onOk);
+            cancel.addEventListener('click', onCancel);
+            dlg.addEventListener('cancel', onCancel);
+            dlg.showModal();
+        });
+    }
+
+    async function decidirAprobacion(grupoId){
+        const det = await tienePropuestaCompleta(grupoId);
+        if (det){
+            const ok = await confirmarAprobacionPropuesta(det);
+            if (!ok) return;
+            try{
+                await postJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/aprobar-por-propuesta`);
+                await cargar();
+            }catch(err){
+                handleApiError(err, 'No se pudo aprobar por propuesta');
+                abrirAprobarGrupo(grupoId);
+            }
+        }else{
+            abrirAprobarGrupo(grupoId);
+        }
+    }
+
+    /* ===== Aprobar grupo (flujo tradicional con selección de laboratorio) ===== */
+    const selLab   = document.getElementById('selLab');
+    const hidLab   = document.getElementById('idLaboratorioHidden');
+    const btnApr   = document.getElementById('btnConfirmAprobar');
+    const labInfo  = document.getElementById('labInfo');
+    const labCap   = document.getElementById('labCap');
+    const labEst   = document.getElementById('labEst');
+    const labPiso  = document.getElementById('labPiso');
+    const labDisp  = document.getElementById('labDisp');
+    const labMsg   = document.getElementById('labMsg');
+    let _labsCache = [];
+
+    function abrirAprobarGrupo(grupoId){
+        const d=document.getElementById('dlgAprobar');
+        d.querySelector('[name=grupoId]').value=grupoId;
+
+        selLab.innerHTML = '<option value="" disabled selected>Cargando laboratorios...</option>';
+        selLab.disabled = true;
+        hidLab.value = '';
+        btnApr.disabled = true;
+        labInfo.style.display = 'none';
+        labMsg.style.display = 'none';
+        labDisp.className = 'pill';
+
+        d.showModal();
+        cargarLabsGrupo(grupoId).catch(err=>{
+            selLab.innerHTML = `<option value="" disabled selected>Error al cargar</option>`;
+            console.error(err);
+        });
+    }
+
+    async function cargarLabsGrupo(grupoId){
+        const data = await getJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/labs-grupo`);
+        _labsCache = Array.isArray(data) ? data : [];
+        if (_labsCache.length===0){
+            selLab.innerHTML = '<option value="" disabled selected>No hay laboratorios configurados</option>';
+            selLab.disabled = true;
+            return _labsCache;
+        }
+        selLab.innerHTML = '<option value="" disabled selected>Seleccione laboratorio…</option>' +
+            _labsCache.map(l => `<option value="${l.id}" ${l.disponible?'':'data-no="1"'}>${l.nombre}${l.disponible?'':' (no disponible en todos los bloques)'}</option>`).join('');
+        selLab.disabled = false;
+        return _labsCache;
+    }
+
+    selLab.addEventListener('change', ()=>{
+        const val = selLab.value;
+        const lab = _labsCache.find(x => String(x.id) === String(val));
+        hidLab.value = val || '';
+        if (!lab){ labInfo.style.display='none'; btnApr.disabled=true; return; }
+        labInfo.style.display = '';
+        labCap.textContent  = (lab.capacidad ?? '-') + ' puestos';
+        labEst.textContent  = lab.estado ?? '-';
+        labPiso.textContent = lab.piso ?? '-';
+        if (lab.disponible){
+            labDisp.textContent='Disponible en todos los bloques'; labDisp.className='pill ok'; labMsg.style.display='none'; btnApr.disabled=false;
+        }else{
+            labDisp.textContent='No disponible en todos los bloques'; labDisp.className='pill bad';
+            labMsg.textContent='Selecciona otro laboratorio o ajusta la propuesta.';
+            labMsg.style.display=''; btnApr.disabled=true;
+        }
+    });
+
+    document.getElementById('btnConfirmAprobar').addEventListener('click', async (e)=>{
+        const btn = e.currentTarget, f = document.getElementById('frmAprobar');
+        const grupoId=f.grupoId.value, idL=Number(f.idLaboratorio.value);
+        if (!grupoId || !idL) { showErrorModal('Aviso', 'Selecciona un laboratorio.'); return; }
+        try{
+            btn.classList.add('busy'); btn.disabled = true;
+            await postJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/aprobar-grupo`, { idLaboratorio:idL });
+            document.getElementById('dlgAprobar').close(); await cargar();
+        }catch(err){ handleApiError(err, 'No se pudo aprobar el grupo'); }
+        finally{ btn.classList.remove('busy'); btn.disabled = false; }
+    });
+
+    /* ===== Rechazar grupo ===== */
+    const dlgRechazar = document.getElementById('dlgRechazar');
+    function abrirRechazarGrupo(grupoId){
+        dlgRechazar.querySelector('[name=grupoId]').value = grupoId;
+        dlgRechazar.showModal();
+    }
+    document.getElementById('btnConfirmRechazar').addEventListener('click', async ()=>{
+        const f = document.getElementById('frmRechazar');
+        const grupoId = f.grupoId.value;
+        const motivo  = f.motivo.value || null;
+        try {
+            await postJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/rechazar-grupo`, { motivo });
+            dlgRechazar.close();
+            await cargar();
+        } catch (err) {
+            handleApiError(err, 'No se pudo rechazar el grupo');
+        }
+    });
+
+    /* ===== Proponer grupo (selección múltiple + carga de labs) ===== */
+    const dlgProp     = document.getElementById('dlgProponer');
+    const selJornada  = document.getElementById('selJornada');
+    const schedBody   = document.getElementById('schedBody');
+    const selLabProp  = document.getElementById('selLabProp');
+    const hidLabProp  = document.getElementById('idLaboratorioPropHidden');
+    const btnProp     = document.getElementById('btnConfirmProponer');
+
+    let _labsPropCache = [];
+    let _selected = new Set();     // ids de horarios seleccionados
+    let _requeridos = 1;           // cantidad de bloques del grupo (resumen-grupo)
+    let _grupoAbierto = '';
+
+    // contador visual seleccionados/requeridos
+    const contadorSpanId = 'propCounter';
+    function renderCounter(){
+        let c = document.getElementById(contadorSpanId);
+        if(!c){
+            const hint = dlgProp.querySelector('.hint');
+            c = document.createElement('div');
+            c.id = contadorSpanId;
+            c.style.margin = '8px 0';
+            c.style.fontWeight = '600';
+            hint.insertAdjacentElement('afterend', c);
+        }
+        c.textContent = `Seleccionados: ${_selected.size} / ${_requeridos}`;
+        c.style.color = (_selected.size === _requeridos) ? '#065f46' : '#991b1b';
+    }
+
+    function abrirProponerGrupo(grupoId){
+        const f = document.getElementById('frmProponer');
+        f.grupoId.value = grupoId;
+        _grupoAbierto = grupoId;
+        _selected = new Set();
+        _requeridos = 1;
+        renderCounter();
+
+        hidLabProp.value = '';
+        btnProp.disabled = true;
+
+        // 1) Resumen del grupo (cuántos bloques hay que elegir)
+        getJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/resumen-grupo`)
+            .then(r => { _requeridos = Number(r.bloquesRequeridos || 1); renderCounter(); })
+            .catch(_ => { _requeridos = 1; renderCounter(); });
+
+        // 2) Labs del grupo
+        selLabProp.innerHTML = '<option value="" disabled selected>Cargando laboratorios...</option>';
+        selLabProp.disabled  = true;
+        cargarLabsGrupo(grupoId).then(data=>{
+            _labsPropCache = Array.isArray(data) ? data : _labsCache; // reusa si la función devolvió nada
+            if (!_labsPropCache || _labsPropCache.length === 0){
+                selLabProp.innerHTML = '<option value="" disabled selected>No hay laboratorios configurados</option>';
+                selLabProp.disabled  = true;
+            } else {
+                selLabProp.innerHTML = '<option value="" disabled selected>Seleccione laboratorio…</option>' +
+                    _labsPropCache.map(l => `<option value="${l.id}">${l.nombre}</option>`).join('');
+                selLabProp.disabled = false;
+            }
+        }).catch(()=> {
+            selLabProp.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+        });
+
+        // 3) Grilla por jornada
+        cargarHorariosGrupo(grupoId, selJornada.value);
+
+        dlgProp.showModal();
+    }
+
+    async function cargarHorariosGrupo(grupoId, jornada){
+        schedBody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center">Cargando horarios…</td></tr>`;
+        _selected.clear(); renderCounter(); evaluarReadyPropuesta();
+
+        try{
+            const idLab = document.getElementById('idLaboratorioPropHidden').value || '';
+            const data = await getJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/horarios-grupo?jornada=${encodeURIComponent(jornada)}&idLaboratorio=${encodeURIComponent(idLab)}`);
+            const horarios = Array.isArray(data) ? data : [];
+
+            const H2 = s => String(s||'').slice(0,5);
+            const horas = [...new Set(horarios.map(h=>H2(h.horaInicio)))].sort();
+            const dias  = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+            const findItem = (dia, hora) => horarios.find(h => h.diaSemana===dia && H2(h.horaInicio)===hora);
+
+            if (horarios.length === 0) {
+                schedBody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center">No hay horarios para la jornada seleccionada.</td></tr>`;
+                return;
+            }
+
+            schedBody.innerHTML = horas.map(hh=>{
+                const tds = dias.map(d=>{
+                    const it = findItem(d, hh);
+                    if (!it) return `<td><div class="slot empty"></div></td>`;
+                    const cls = (it.disponible===false) ? 'busy' : 'available';
+                    return `<td>
+            <div class="slot ${cls}" data-id="${it.id}">
+              <div class="n">${d}</div>
+              <div class="t">${H2(it.horaInicio)}–${H2(it.horaFin)}</div>
+            </div>
+          </td>`;
+                }).join('');
+                return `<tr><th>${hh}</th>${tds}</tr>`;
+            }).join('');
+
+            // selección múltiple con límite = _requeridos
+            schedBody.querySelectorAll('.slot.available').forEach(el=>{
+                el.addEventListener('click', ()=>{
+                    const id = el.dataset.id;
+                    if (_selected.has(id)) { // deseleccionar
+                        _selected.delete(id);
+                        el.classList.remove('selected');
+                    } else {
+                        if (_selected.size >= _requeridos) {
+                            const first = _selected.values().next().value;
+                            _selected.delete(first);
+                            const oldEl = schedBody.querySelector(`.slot.selected[data-id="${first}"]`);
+                            if (oldEl) oldEl.classList.remove('selected');
+                        }
+                        _selected.add(id);
+                        el.classList.add('selected');
+                    }
+                    renderCounter();
+                    evaluarReadyPropuesta();
+                });
+            });
+
+        }catch(err){
+            schedBody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center">Error: ${err.message}</td></tr>`;
+        }
+    }
+
+    selJornada.addEventListener('change', ()=>{
+        if (!_grupoAbierto) return;
+        cargarHorariosGrupo(_grupoAbierto, selJornada.value);
+    });
+
+    // Al cambiar laboratorio: guarda, recarga grilla (para pintar ocupados/libres) y evalúa botón
+    selLabProp.addEventListener('change', ()=>{
+        hidLabProp.value = selLabProp.value || '';
+        if (_grupoAbierto) cargarHorariosGrupo(_grupoAbierto, selJornada.value);
+        evaluarReadyPropuesta();
+    });
+
+    function evaluarReadyPropuesta(){
+        btnProp.disabled = !(_selected.size === _requeridos && hidLabProp.value);
+    }
+
+    document.getElementById('btnConfirmProponer').addEventListener('click', async ()=>{
+        const f = document.getElementById('frmProponer');
+        const grupoId = f.grupoId.value;
+        const idL     = Number(hidLabProp.value);
+        const msg     = document.getElementById('msgProp').value || '';
+        if (!grupoId || !idL) { showErrorModal('Aviso','Selecciona laboratorio y bloques.'); return; }
+        if (_selected.size !== _requeridos) { showErrorModal('Aviso',`Debes seleccionar ${_requeridos} bloques.`); return; }
+
+        const idHorarios = Array.from(_selected).map(Number);
+        try{
+            await postJSON(`/api/admin/solicitudes/${encodeURIComponent(grupoId)}/proponer-grupo`, {
+                idLaboratorio: idL,
+                idHorarios,
+                mensaje: msg
+            });
+            dlgProp.close();
+            await cargar();
+        }catch(err){
+            handleApiError(err,'No se pudo enviar la propuesta');
+        }
+    });
+
+    // Controles y primera carga
+    document.getElementById('btnRefrescar').addEventListener('click', cargar);
+    document.getElementById('fEstado').addEventListener('change', cargar);
+    cargar();
+</script>
+</body>
+</html>

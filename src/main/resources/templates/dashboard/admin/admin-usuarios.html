@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Usuarios</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global con rompe-caché + fallback -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* ====== Bloque: Crear usuario (grid 12 cols) ====== */
+    .create-grid{ display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:12px 16px; align-items:end }
+    .field label{ display:block; font-size:.9rem; color:#6b7280; margin-bottom:6px }
+    .field input,.field select{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px }
+    .field input[readonly]{ background:#f9faf7; cursor:not-allowed }
+    .col-1{grid-column:span 1}.col-2{grid-column:span 2}.col-3{grid-column:span 3}.col-4{grid-column:span 4}
+    .col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-7{grid-column:span 7}.col-8{grid-column:span 8}
+    .col-9{grid-column:span 9}.col-10{grid-column:span 10}.col-11{grid-column:span 11}.col-12{grid-column:span 12}
+    @media (max-width:1024px){ .col-lg-6{grid-column:span 6}.col-lg-12{grid-column:span 12} }
+    @media (max-width:640px){ .col-sm-12{grid-column:span 12} }
+    .error-text{color:#b91c1c; font-size:.9rem}
+
+    /* Tabla dentro del tema */
+    .table{ width:100%; border-collapse:collapse }
+    .table th,.table td{ padding:12px 10px; border-bottom:1px solid var(--border-light) }
+    .table thead th{ background:#F9FAF7; color:#334155; font-weight:600 }
+    .row-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+    .mini-input{ padding:6px 8px; border:1px solid #ddd; border-radius:10px }
+
+    /* Modal */
+    .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1050 }
+    .modal-backdrop.open{ display:flex }
+    .modal{ background:#fff; width:min(820px,94vw); border-radius:14px; padding:16px; box-shadow:0 10px 40px rgba(0,0,0,.25) }
+    .modal-header,.modal-footer{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+    .btn-ghost{ background:#eef2ff; color:#1f2937; border:none; padding:8px 12px; border-radius:10px; cursor:pointer }
+    .muted{ color:#6b7280 }
+    .tag{ display:inline-block; padding:2px 10px; border-radius:999px; background:#F1F5F9; font-size:.85rem; color:#334155 }
+
+    .field-pwd{ position:relative }
+.field-pwd .pwd-eye,
+.field-pwd .pwd-copy{
+  position:absolute; top:34px; /* alineado con input */
+  background:transparent; border:none; cursor:pointer; padding:6px;
+  color:#64748b; border-radius:8px;
+}
+.field-pwd .pwd-copy{ right:6px }
+.field-pwd .pwd-eye{ right:38px } /* ojo a la separación entre botones */
+.field-pwd .pwd-eye:hover,.field-pwd .pwd-copy:hover{ color:#111827; background:#f3f4f6 }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (mismo que admin.html) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+      <a th:href="@{/dashboard/admin/horarios}" class="nav-item"><i class="fas fa-calendar-alt"></i> Horarios</a>
+      <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+      <a th:href="@{/dashboard/admin/admin-usuarios}" class="nav-item active"><i class="fas fa-users"></i> Gestión de Usuarios</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="showHelp()"><i class="fas fa-question-circle"></i> Ayuda</button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <!-- Header (igual tema) -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-users-cog"></i> Gestión de Usuarios</h1>
+
+      <!-- Flash -->
+      <div th:if="${ok}" class="announcements-section" style="border-left:4px solid #1B7505"><b th:text="${ok}"></b></div>
+      <div th:if="${error}" class="announcements-section" style="border-left:4px solid #dc3545"><b th:text="${error}"></b></div>
+      <div th:if="${warn}" class="alert alert-warning" th:text="${warn}"></div>
+
+
+      <!-- ===== Crear usuario (usa estilo de tarjeta del tema) ===== -->
+      <div class="announcements-section" style="display:grid; gap:12px">
+        <h2 class="section-title"><i class="fas fa-user-plus"></i> Crear usuario</h2>
+
+        <form id="frmCrearUsuario" th:action="@{/admin/usuarios/crear}" method="post" novalidate>
+          <div class="create-grid">
+            <div class="field col-3 col-lg-6 col-sm-12">
+              <label>Username</label>
+             <input id="inp-username" name="username" placeholder="username" autocomplete="off" required>
+            </div>
+
+            <div class="field col-3 col-lg-6 col-sm-12 field-pwd">
+            <label>Contraseña</label>
+            <input id="pwd1" type="password" name="password" placeholder="contraseña" autocomplete="new-password" required>
+            <button type="button" class="pwd-eye" data-target="pwd1" aria-label="Mostrar u ocultar contraseña"><i class="fa fa-eye"></i></button>
+            <button type="button" class="pwd-copy" data-target="pwd1" aria-label="Copiar contraseña"><i class="fa fa-copy"></i></button>
+          </div>
+
+            <div class="field col-3 col-lg-6 col-sm-12 field-pwd">
+              <label>Confirmar contraseña</label>
+              <input id="pwd2" type="password" placeholder="repita contraseña" autocomplete="new-password" required>
+              <button type="button" class="pwd-eye" data-target="pwd2" aria-label="Mostrar u ocultar contraseña"><i class="fa fa-eye"></i></button>
+              <button type="button" class="pwd-copy" data-target="pwd2" aria-label="Copiar contraseña"><i class="fa fa-copy"></i></button>
+              <div id="pwdErr" class="error-text" style="display:none">Las contraseñas no coinciden.</div>
+            </div>
+
+            <div class="field col-3 col-lg-6 col-sm-12">
+              <label>Rol</label>
+              <select name="idRol" required>
+                <option value="1">Administrador</option>
+                <option value="2">Coordinador (Admin Piso)</option>
+                <option value="3">Docente</option>
+                <option value="4">Estudiante</option>
+              </select>
+            </div>
+
+            <div class="field col-2 col-lg-6 col-sm-12">
+              <label>ID Persona</label>
+              <input id="inp-id-persona" name="idPersona" placeholder="id_persona" required readonly>
+            </div>
+
+            <div class="field col-6 col-lg-6 col-sm-12">
+              <label>Nombre Persona</label>
+              <input id="inp-nombre-persona" type="text" placeholder="(sin seleccionar)" readonly>
+            </div>
+
+            <div class="field col-2 col-lg-6 col-sm-12">
+              <label>&nbsp;</label>
+              <button type="button" class="btn" id="btnBuscarPersona" style="width:100%"><i class="fas fa-search"></i> Buscar persona</button>
+            </div>
+
+            <div class="field col-2 col-lg-6 col-sm-12">
+              <label>&nbsp;</label>
+              <button id="btnCrear" class="btn" type="submit" style="width:100%"><i class="fas fa-check"></i> Crear</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ===== Lista de usuarios ===== -->
+      <div class="announcements-section" style="overflow:auto">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+          <h2 class="section-title" style="margin:0"><i class="fas fa-list"></i> Usuarios</h2>
+          <span class="tag" th:text="'Total: ' + ${#lists.size(usuarios)}">Total: 0</span>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Persona</th>
+              <th>Rol</th>
+              <th>DB Role</th>
+              <th>Activo</th>
+              <th style="width:420px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- r = [id_usuario, username, id_persona, id_rol, nombre_rol, db_role, activo] -->
+            <tr th:each="r : ${usuarios}">
+              <td th:text="${r[0]}"></td>
+              <td th:text="${r[1]}"></td>
+              <td th:text="${r[2]}"></td>
+              <td th:text="${r[4]} ?: '-'"></td>
+              <td th:text="${r[5]} ?: '-'"></td>
+              <td th:text="${r[6]}"></td>
+              <td class="row-actions">
+                <form th:action="@{/admin/usuarios/rol}" method="post">
+                  <input type="hidden" name="idUsuario" th:value="${r[0]}">
+                  <select class="mini-input" name="idRol">
+                    <option value="1">Administrador</option>
+                    <option value="2">Coordinador</option>
+                    <option value="3">Docente</option>
+                    <option value="4">Estudiante</option>
+                  </select>
+                  <button class="btn" type="submit">Cambiar</button>
+                </form>
+
+                <form th:action="@{/admin/usuarios/reset}" method="post">
+                  <input type="hidden" name="idUsuario" th:value="${r[0]}">
+                  <input class="mini-input" name="password" placeholder="nueva clave" required autocomplete="new-password">
+                  <button class="logout" type="submit" style="padding:6px 10px; border-radius:10px">Reset</button>
+                </form>
+              </td>
+            </tr>
+
+            <tr th:if="${#lists.isEmpty(usuarios)}">
+              <td colspan="7" class="muted">No hay usuarios para mostrar.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Modal Personas ===== -->
+  <div id="modalPersonas" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalPersonasTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalPersonasTitle" style="margin:0">Seleccionar Persona</h3>
+        <button type="button" class="btn-ghost" id="btnCerrarModal">Cerrar</button>
+      </div>
+
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+        <input id="busqPersona" type="text" placeholder="Buscar por nombre/apellido..." style="flex:1; min-width:220px">
+        <button type="button" class="btn" id="btnBuscar"><i class="fas fa-search"></i> Buscar</button>
+        <span id="msgPersona" class="muted"></span>
+      </div>
+
+      <div style="overflow:auto; max-height:52vh">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombres</th>
+              <th>Apellidos</th>
+              <th style="width:120px">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPersonas">
+            <tr><td colspan="4" class="muted">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-footer">
+        <div style="display:flex; gap:8px; align-items:center">
+          <button type="button" class="btn-ghost" id="btnPrev">&larr; Anterior</button>
+          <span id="lblPagina" class="muted">Página 1 de 1 (Total 0)</span>
+          <button type="button" class="btn-ghost" id="btnNext">Siguiente &rarr;</button>
+        </div>
+        <button type="button" class="btn-ghost" id="btnCerrarModal2">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script th:inline="javascript">
+    // Sesión a UI
+    const _nombre = /*[[${session.nombreUsuario}]]*/ 'Administrador';
+    const _rol    = /*[['' + ${session.rol}]]*/ 'ADMIN';
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+
+    
+
+    // UI comunes (mismo que admin.html)
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const getIni = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show');});
+    (function(){ const n = sessionStorage.getItem('nombreUsuario') || 'Administrador'; userName.textContent = n; userAvatar.textContent = getIni(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){ } sessionStorage.clear(); window.location.href='/login'; 
+ 
+    
+
+  
+  });
+
+    // Validación de contraseñas
+    const frm  = document.getElementById('frmCrearUsuario');
+    const pwd1 = document.getElementById('pwd1');
+    const pwd2 = document.getElementById('pwd2');
+    const pErr = document.getElementById('pwdErr');
+    const btnCrear = document.getElementById('btnCrear');
+    function checkPwds(){ const ok = (pwd1.value && pwd2.value && pwd1.value === pwd2.value); pErr.style.display = ok?'none':'block'; btnCrear.disabled = !ok; return ok; }
+    pwd1?.addEventListener('input', checkPwds); pwd2?.addEventListener('input', checkPwds);
+    frm?.addEventListener('submit', (e)=>{ if(!checkPwds()){ e.preventDefault(); pwd2.focus(); } });
+
+
+
+      logoutBtn?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await fetch('/logout', { method: 'GET', credentials: 'include' });
+    } catch (_) { /* noop */ }
+    sessionStorage.clear();
+    window.location.href = '/login';
+  });
+
+  // Toggle mostrar/ocultar y copiar contraseña (DEBE estar fuera del listener de logout)
+  document.addEventListener('click', (e) => {
+    const eye  = e.target.closest('.pwd-eye');
+    const copy = e.target.closest('.pwd-copy');
+
+    if (eye) {
+      const id = eye.getAttribute('data-target');
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.type = (el.type === 'password') ? 'text' : 'password';
+      const i = eye.querySelector('i');
+      if (i) i.className = (el.type === 'password') ? 'fa fa-eye' : 'fa fa-eye-slash';
+    }
+
+    if (copy) {
+      const id = copy.getAttribute('data-target');
+      const el = document.getElementById(id);
+      if (!el) return;
+      navigator.clipboard?.writeText(el.value).then(() => {
+        copy.classList.add('copied');
+        setTimeout(() => copy.classList.remove('copied'), 700);
+      }).catch(() => {});
+    }
+  });
+    // Modal Personas + paginación
+    const modal = document.getElementById('modalPersonas');
+    const btnOpen = document.getElementById('btnBuscarPersona');
+    const btnClose1 = document.getElementById('btnCerrarModal');
+    const btnClose2 = document.getElementById('btnCerrarModal2');
+   
+    const inpQ = document.getElementById('busqPersona');
+    const btnBuscar = document.getElementById('btnBuscar');
+    const tbody = document.getElementById('tbodyPersonas');
+    const msg = document.getElementById('msgPersona');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const lblPagina = document.getElementById('lblPagina');
+    const inpId = document.getElementById('inp-id-persona');
+    const inpNombre = document.getElementById('inp-nombre-persona');
+    const inpUser = document.getElementById('inp-username');
+
+    let state = { q:null, page:0, size:10, total:0 };
+    const openModal = ()=>{ modal.classList.add('open'); inpQ.focus(); state={q:null,page:0,size:10,total:0}; doSearch(); };
+    const closeModal = ()=> modal.classList.remove('open');
+    btnOpen?.addEventListener('click', openModal); btnClose1?.addEventListener('click', closeModal); btnClose2?.addEventListener('click', closeModal);
+     inpNombre?.addEventListener('change', sugerirCredenciales);
+
+    async function fetchPersonas(q,page,size){
+      const url = new URL('/api/personas', window.location.origin);
+      if (q && q.trim().length>0) url.searchParams.set('q', q.trim());
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('size', String(size));
+      const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      return res.json(); // {data,total,page,size}
+    }
+    function renderRows(list){
+      if(!Array.isArray(list) || list.length===0){ tbody.innerHTML='<tr><td colspan="4" class="muted">Sin resultados.</td></tr>'; return; }
+      tbody.innerHTML='';
+      for(const p of list){
+        const id  = p.id_persona ?? p.id ?? '';
+        const nom = (p.nombres??'')+'';
+        const ape = (p.apellidos??'')+'';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${id}</td><td>${nom}</td><td>${ape}</td>
+                        <td><button type="button" class="btn" data-id="${id}" data-nombre="${nom} ${ape}">Elegir</button></td>`;
+        tr.querySelector('button').onclick = (ev)=>{
+        inpId.value = ev.currentTarget.getAttribute('data-id') || '';
+        inpNombre.value = ev.currentTarget.getAttribute('data-nombre') || '';
+        closeModal();
+        sugerirCredenciales();
+        };
+        tbody.appendChild(tr);
+      }
+    }
+    function renderPager(){
+      const totalPages = Math.max(1, Math.ceil(state.total/state.size));
+      lblPagina.textContent = `Página ${state.page+1} de ${totalPages} (Total ${state.total})`;
+      btnPrev.disabled = state.page<=0;
+      btnNext.disabled = state.page>=totalPages-1;
+    }
+    async function doSearch(){
+      msg.textContent = 'Buscando...';
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">Buscando...</td></tr>';
+      try{
+        const resp = await fetchPersonas(state.q,state.page,state.size);
+        const list = resp?.data ?? [];
+        state.total = Number(resp?.total ?? list.length);
+        renderRows(list); renderPager(); msg.textContent='';
+      }catch(e){ console.error(e); tbody.innerHTML='<tr><td colspan="4" style="color:#b00020">Error al cargar personas.</td></tr>'; msg.textContent='Error'; }
+    }
+    btnBuscar?.addEventListener('click', ()=>{ state.q=(inpQ.value||'').trim()||null; state.page=0; doSearch(); });
+    inpQ?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); state.q=(inpQ.value||'').trim()||null; state.page=0; doSearch(); } });
+    btnPrev?.addEventListener('click', ()=>{ if(state.page>0){ state.page--; doSearch(); } });
+    btnNext?.addEventListener('click', ()=>{ const totalPages=Math.max(1,Math.ceil(state.total/state.size)); if(state.page<totalPages-1){ state.page++; doSearch(); } });
+
+    // ===== NEW: generación de credenciales =====
+async function sugerirCredenciales() {
+  const nombre = (inpNombre?.value || '').trim();
+  if (!nombre) return;
+
+  try {
+    const url = new URL('/admin/usuarios/sugerir', window.location.origin);
+    url.searchParams.set('nombrePersona', nombre);
+
+    const resp = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if (inpUser) inpUser.value = data.username || '';
+    if (pwd1)    pwd1.value   = data.password || '';
+    if (pwd2)    pwd2.value   = data.password || '';
+    checkPwds();
+  } catch (e) {
+    console.warn('No se pudo sugerir desde backend, usando fallback local:', e);
+    // Username local: inicial del primer nombre + último apellido + número
+    if (inpUser) {
+      const base = slugInicialApellido(inpNombre.value || '');
+      inpUser.value = base + numeroAleatorio(2);
+    }
+    // Password local fuerte
+    const fallback = generarPasswordLocal(12);
+    if (pwd1) pwd1.value = fallback;
+    if (pwd2) pwd2.value = fallback;
+    checkPwds();
+  }
+}
+
+// Helpers (sin librerías)
+function generarPasswordLocal(len) {
+  const may = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const min = "abcdefghijkmnpqrstuvwxyz";
+  const dig = "23456789";
+  const sym = "@#$%&*?!";
+  const pool = may + min + dig + sym;
+  let s = [
+    may[Math.floor(Math.random()*may.length)],
+    min[Math.floor(Math.random()*min.length)],
+    dig[Math.floor(Math.random()*dig.length)],
+    sym[Math.floor(Math.random()*sym.length)]
+  ].join('');
+  while (s.length < len) s += pool[Math.floor(Math.random()*pool.length)];
+  return s;
+}
+
+function slugInicialApellido(nombreCompleto){
+  const limpio = (nombreCompleto||'')
+    .normalize('NFD').replace(/\p{Diacritic}/gu,'') // quita tildes
+    .toLowerCase().replace(/[^a-z\s]/g,' ')
+    .trim().split(/\s+/);
+  const nombre = limpio[0] || 'u';
+  const apellido = limpio.length > 1 ? limpio[limpio.length-1] : 'user';
+  return (nombre[0] + apellido).replace(/[^a-z0-9]/g,'');
+}
+function numeroAleatorio(dig){
+  const n = Math.pow(10,dig-1);
+  return '' + (Math.floor(Math.random()*(9*n)) + n); // ej. 2 dígitos: 10..99
+}
+
+
+
+    // Ayuda global
+    function showHelp(){ alert('Ayuda\n\nMódulo de Gestión de Usuarios. Crea usuarios, asigna roles y reinicia contraseñas.'); }
+    window.showHelp = showHelp;
+
+    // Responsive inicial
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+  </script>
+</body>
+</html>

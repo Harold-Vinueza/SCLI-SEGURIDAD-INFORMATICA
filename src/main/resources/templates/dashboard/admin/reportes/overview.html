@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reportes Freddy – Overview</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+
+        /* ===== Tablas de reportes (estilo unificado) ===== */
+        .table-theme {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            margin-top: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .table-theme th,
+        .table-theme td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .table-theme th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .table-theme tr:nth-child(even) td { background: #fdfdfd; }
+        .table-theme tr:hover td { background: #f0fdf4; }
+
+
+
+
+        /* ===== Tabla: Asistencia por Materia ===== */
+        #tblAsistMateria table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        #tblAsistMateria th,
+        #tblAsistMateria td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        #tblAsistMateria th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        #tblAsistMateria tr:nth-child(even) td { background: #fdfdfd; }
+        #tblAsistMateria tr:hover td { background: #f0fdf4; }
+
+        /* Tabla para Uso por Laboratorio */
+        #tblUsoLab table{width:100%; border-collapse:collapse; font-size:.95rem;}
+        #tblUsoLab th,#tblUsoLab td{padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb;}
+        #tblUsoLab th{background:#f9fafb; font-weight:600; color:#374151;}
+        #tblUsoLab tr:nth-child(even) td{background:#fdfdfd;}
+        #tblUsoLab tr:hover td{background:#f0fdf4;}
+
+        /* ===== Resumen del Sistema ===== */
+        .system-summary{
+            max-width: 980px;
+            margin: 24px auto;
+            padding: 0 8px;
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 1fr;
+            place-content: center;
+        }
+        @media (min-width: 900px){
+            .system-summary{ grid-template-columns: 1fr 1fr; }
+        }
+        .system-summary .card{
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(2, 90, 39, .06);
+            padding: 16px 18px;
+        }
+        .system-summary .card h3{
+            margin: 0 0 12px;
+            font-size: 1.1rem;
+            color: #064e3b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .system-summary .card p{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 6px 0;
+            color: #334155;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        .system-summary .card p:last-child{ border-bottom: 0; }
+        .system-summary .card p span{ font-weight: 700; color: #0a7c3a; }
+
+        .hub-grid{
+            display:grid; gap:16px;
+            grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+            margin-top:12px;
+        }
+        .hub-tile{
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:10px; padding:24px; border:1px solid #e5e7eb; border-radius:14px; background:#fff;
+            text-decoration:none; color:#0f3e2a;
+            box-shadow:0 2px 6px rgba(0,0,0,.05);
+            transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+        .hub-tile i{ font-size:28px; }
+        .hub-tile:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); border-color:#cfe7d8; }
+
+        /* Ajustes mínimos */
+        .filters-bar{position:sticky;top:64px;z-index:10;background:#fff;border:1px solid var(--border-light);
+            border-radius:12px;padding:12px;margin-bottom:14px}
+        .stack{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+        .input{padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+        .kpis{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px}
+        .kpi{background:#fff;border:1px solid var(--border-light);border-radius:12px;padding:12px}
+        .kpi .val{font-size:1.6rem;font-weight:700}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        @media (max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}}
+        .card{background:#fff;border:1px solid var(--border-light);border-radius:12px;padding:12px}
+        .card h3{margin:0 0 8px}
+        .actions{margin-left:auto}
+
+        /* --- Parche responsive extra --- */
+        .main-content{overflow-x:hidden}
+        .filters-bar .stack{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+        .filters-bar select,.filters-bar input{flex:1 1 220px;min-width:200px}
+        .filters-bar .actions{margin-left:auto;display:flex;gap:10px;flex:1 1 220px;justify-content:flex-end}
+        .kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+        .grid-2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+        .card{min-width:0}
+        .card .stack{flex-wrap:wrap}
+        .card h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .chart-wrap{height:clamp(220px,34vh,380px)}
+        .chart-wrap canvas{width:100% !important;height:100% !important}
+        @media (max-width:640px){
+            .filters-bar select,.filters-bar input,.filters-bar .actions{flex:1 1 100%}
+        }
+
+        .system-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+        .system-summary .card {
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,.05);
+        }
+        /* Asegura z-index del dropdown */
+        .user-dropdown { position: absolute; z-index: 2000; }
+        .header { position: relative; z-index: 1500; }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-desktop"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/admin/reportes/overview}" class="nav-item active"><i class="fas fa-chart-bar"></i> Reportes Freddy</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('Panel consolidado de reportes. Usa los filtros globales.')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+    <!-- Header -->
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button">
+                <div class="user-avatar" id="userAvatar">AD</div>
+                <span id="userName">Administrador</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+                <a class="dropdown-item" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas a-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-chart-line"></i> Reportes  – Overview</h1>
+
+        <!-- Barra de filtros -->
+        <div class="filters-bar">
+            <div class="stack">
+                <select id="periodo" class="input">
+                    <option value="mes-actual">Este mes</option>
+                    <option value="semana-actual">Esta semana</option>
+                    <option value="hoy">Hoy</option>
+                    <option value="rango">Rango personalizado…</option>
+                </select>
+                <input id="desde" class="input" type="date" style="display:none">
+                <input id="hasta" class="input" type="date" style="display:none">
+                <select id="laboratorio" class="input">
+                    <option value="">Todos los laboratorios</option>
+                </select>
+
+                <div class="actions stack">
+                    <button id="btnAplicar" class="btn" type="button"><i class="fas fa-filter"></i> Aplicar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpis" id="kpis">
+            <div class="kpi"><div>Uso Promedio</div><div class="val" id="kpiUso">—</div></div>
+            <div class="kpi"><div>Horas Totales</div><div class="val" id="kpiHoras">—</div></div>
+            <div class="kpi"><div>Usuarios Únicos</div><div class="val" id="kpiUsuarios">—</div></div>
+            <div class="kpi"><div>Incidencias</div><div class="val" id="kpiIncidencias">—</div></div>
+        </div>
+
+        <!-- 🔽 Hub -->
+        <section id="overview-hub" class="hub-grid">
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardUsoLab')" class="hub-tile">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>Uso por Laboratorio</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardEstadoEq')" class="hub-tile">
+                <i class="fa-solid fa-laptop-medical"></i>
+                <span>Estado de Equipos</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardUsoSem')" class="hub-tile">
+                <i class="fa-solid fa-calendar-week"></i>
+                <span>Uso Semanal</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardTopEst')" class="hub-tile">
+                <i class="fa-solid fa-user-graduate"></i>
+                <span>Top Estudiantes</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardCargaDoc')" class="hub-tile">
+                <i class="fa-solid fa-briefcase"></i>
+                <span>Carga de Docentes</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardAsistMateria')" class="hub-tile">
+                <i class="fa-solid fa-book-open"></i>
+                <span>Asistencia por Materia</span>
+            </a>
+            <a href="javascript:void(0)" onclick="mostrarReporte('cardFallosMes')" class="hub-tile">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Tendencia Mensual</span>
+            </a>
+        </section>
+
+        <!-- 🔽 Contenedor de gráficos (todos ocultos al inicio) -->
+        <div id="contenedor-reportes" style="margin-top:16px">
+            <!-- Uso por Laboratorio -->
+            <div class="card" id="cardUsoLab" style="display:none">
+                <div class="stack">
+                    <h3>Uso por Laboratorio</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabUsoLab" type="button" style="display:inline-flex">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expUsoLab"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chUsoLab"></canvas></div>
+                <div id="tblUsoLab" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+
+            <div class="card" id="cardEstadoEq" style="display:none">
+                <div class="stack">
+                    <h3>Estado de Equipos</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabEstado" type="button">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expEstado"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chEstadoEquipos"></canvas></div>
+                <div id="tblEstado" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+
+            <!-- Uso Semanal -->
+            <div class="card" id="cardUsoSem" style="display:none">
+                <div class="stack">
+                    <h3>Uso Semanal</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabUsoSem" type="button">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expSemanal"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chUsoSemanal"></canvas></div>
+                <div id="tblUsoSem" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+
+            <div class="card" id="cardTopEst" style="display:none">
+                <div class="stack">
+                    <h3>Top Estudiantes</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabTopEst" type="button">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expTopEst"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chTopEst"></canvas></div>
+                <div id="tblTopEst" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+
+            <div class="card" id="cardCargaDoc" style="display:none">
+                <div class="stack">
+                    <h3>Carga de Docentes</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabCargaDoc" type="button">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expCargaDoc"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chCargaDoc"></canvas></div>
+                <div id="tblCargaDoc" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+
+            <!-- Asistencia por Materia -->
+            <div class="card" id="cardAsistMateria" style="display:none">
+                <div class="stack">
+                    <h3>Asistencia por Materia</h3>
+                    <div class="actions"><button class="btn" id="expAsistMateria"><i class="fas fa-file-export"></i> Exportar</button></div>
+                </div>
+                <div id="tblAsistMateria" style="overflow:auto"></div>
+            </div>
+
+            <div class="card" id="cardFallosMes" style="display:none">
+                <div class="stack">
+                    <h3>Tendencia Mensual</h3>
+                    <div class="actions">
+                        <button class="btn" id="btnTabFallosMes" type="button">
+                            <i class="fas fa-table"></i> Mostrar tabla
+                        </button>
+                        <button class="btn" id="expFallosMes"><i class="fas fa-file-export"></i> Exportar</button>
+                    </div>
+                </div>
+                <div class="chart-wrap"><canvas id="chFallosMes"></canvas></div>
+                <div id="tblFallosMes" style="display:none; overflow:auto; margin-top:10px"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Resumen del sistema -->
+    <section class="system-summary">
+        <div class="card">
+            <h3><i class="fa-solid fa-circle-info"></i> Resumen del Sistema</h3>
+            <p>Total de laboratorios: <span id="totalLabs">—</span></p>
+            <p>Equipos totales: <span id="totalEquipos">—</span></p>
+            <p>Usuarios registrados: <span id="totalUsuarios">—</span></p>
+            <p>Reservas este mes: <span id="totalReservas">—</span></p>
+            <p>Horas de uso totales: <span id="horasTotales">—</span></p>
+            <p>Eficiencia promedio: <span id="eficiencia">—</span></p>
+        </div>
+    </section>
+</main>
+
+<script>
+    function mostrarReporte(id) {
+        document.querySelectorAll('#contenedor-reportes > .card')
+            .forEach(div => div.style.display = 'none');
+        const tgt = document.getElementById(id);
+        if (tgt) tgt.style.display = 'block';
+    }
+
+    // ===== Colores desde tu tema =====
+    const theme = {
+        primary: getComputedStyle(document.documentElement).getPropertyValue('--green-700')?.trim() || '#0a7c3a',
+        grid: '#e5e7eb'
+    };
+
+    // ===== Query params =====
+    function buildParams() {
+        const p = new URLSearchParams();
+        const periodo = document.querySelector('#periodo')?.value;
+        const labId = document.querySelector('#laboratorio')?.value;
+        const d = document.querySelector('#desde')?.value;
+        const h = document.querySelector('#hasta')?.value;
+        if (periodo) p.set('periodo', periodo);
+        if (labId)  p.set('labId', labId);
+        if (d) p.set('desde', d);
+        if (h) p.set('hasta', h);
+        const s = p.toString();
+        return s ? `?${s}` : '';
+    }
+
+    async function fetchJSON(url){
+        const r = await fetch(url, {credentials:'same-origin'});
+        if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+    }
+
+    // ===== Charts =====
+    let CH_FallosMes;
+
+    function renderLineFallosMes(data){
+        const ctx = document.getElementById('chFallosMes'); if(!ctx) return;
+        if (CH_FallosMes) CH_FallosMes.destroy();
+        if (!data?.length){ return; }
+        const keys = Object.keys(data[0]);
+        const labelKey = keys.find(k=>/mes|fecha|periodo/i.test(k)) || keys[0];
+        const valueKey = keys.find(k=>/total|cantidad|fallos|incidencias/i.test(k) && typeof data[0][k]==='number')
+            || keys.find(k=> typeof data[0][k]==='number') || keys[1];
+        const labels = data.map(r => String(r[labelKey]));
+        const values = data.map(r => Number(r[valueKey]||0));
+        CH_FallosMes = new Chart(ctx, {
+            type:'line',
+            data:{ labels, datasets:[{ label:valueKey, data:values, borderColor:theme.primary, tension:.35, fill:false }] },
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+                scales:{
+                    x:{ grid:{color:theme.grid}, ticks:{autoSkip:true,maxTicksLimit:6} },
+                    y:{ grid:{color:theme.grid}, beginAtZero:true }
+                },
+                plugins:{ legend:{display:false} }
+            }
+        });
+    }
+
+    let CH_Estado;
+    function renderPieEstadoEquipos(fallos){
+        const el = document.getElementById('chEstadoEquipos'); if(!el) return;
+        if (CH_Estado) CH_Estado.destroy();
+        if (!Array.isArray(fallos) || !fallos.length) return;
+        const key = 'estado_reporte';
+        const counts = new Map();
+        fallos.forEach(r=>{
+            const k = String(r[key] ?? 'N/D');
+            counts.set(k, (counts.get(k)||0)+1);
+        });
+        const labels = [...counts.keys()];
+        const values = [...counts.values()];
+        CH_Estado = new Chart(el, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: values }] },
+            options: {
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{ position:'bottom' } }
+            }
+        });
+    }
+
+    // Exportar PNG
+    document.getElementById('expEstado')?.addEventListener('click', ()=>{
+        if (!CH_Estado) return;
+        const a = document.createElement('a');
+        a.href = CH_Estado.toBase64Image();
+        a.download = 'estado-equipos.png';
+        a.click();
+    });
+
+    const DIAS_ES  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const DIAS_OUT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    let CH_Semanal;
+
+    // ==== Resumen del sistema ====
+    async function loadResumenSistema(){
+        try {
+            const resumen = await fetchJSON('/api/reportes-freddy/resumen-sistema');
+            if (resumen?.length){
+                const r = resumen[0];
+                document.getElementById('totalLabs').textContent     = r.total_laboratorios ?? '—';
+                document.getElementById('totalEquipos').textContent  = r.total_equipos ?? '—';
+                document.getElementById('totalUsuarios').textContent = r.total_usuarios ?? '—';
+                document.getElementById('totalReservas').textContent = r.reservas_mes ?? '—';
+                document.getElementById('horasTotales').textContent  = r.horas_totales ?? '—';
+                document.getElementById('eficiencia').textContent    = (r.eficiencia_promedio ?? 0) + '%';
+            }
+        } catch (e){
+            console.error("Error cargando resumen del sistema:", e);
+        }
+    }
+
+    function renderLineUsoSemanal_Ocupacion(rows){
+        const el = document.getElementById('chUsoSemanal'); if(!el) return;
+        if (CH_Semanal) CH_Semanal.destroy();
+        if (!Array.isArray(rows) || !rows.length) return;
+
+        const y = new Array(7).fill(0);
+        rows.forEach(r=>{
+            const idx = DIAS_ES.indexOf(String(r.dia_semana||'').trim());
+            if (idx >= 0) y[idx] += Number(r.ocupacion||0);
+        });
+
+        CH_Semanal = new Chart(el, {
+            type: 'line',
+            data: { labels: DIAS_OUT, datasets: [{ data: y, tension:.35, fill:false, borderColor:'#025A27' }] },
+            options: {
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ y:{ beginAtZero:true } }
+            }
+        });
+    }
+
+    // ===== Uso por laboratorio (llaves fijas) =====
+    function renderBarUsoLab_Fixed(rows){
+        const el = document.getElementById('chUsoLab'); if(!el) return;
+        if (!Array.isArray(rows) || !rows.length) return;
+        const labels = rows.map(r => r.nombre_laboratorio);
+        const values = rows.map(r => Number(r.total_asignaciones || 0));
+        if (window.CH_UsoLab) CH_UsoLab.destroy();
+        window.CH_UsoLab = new Chart(el, {
+            type:'bar',
+            data:{ labels, datasets:[{ data: values }] },
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ y:{ beginAtZero:true } }
+            }
+        });
+    }
+
+    function renderBarUsoLab_Fixed(rows){
+        const el = document.getElementById('chUsoLab'); if(!el) return;
+        if (!Array.isArray(rows) || !rows.length) return;
+
+        LAST_UsoLab = rows; // guarda datos para la tabla
+
+        const labels = rows.map(r => r.nombre_laboratorio);
+        const values = rows.map(r => Number(r.total_asignaciones || 0));
+        if (window.CH_UsoLab) CH_UsoLab.destroy();
+        window.CH_UsoLab = new Chart(el, {
+            type:'bar',
+            data:{ labels, datasets:[{ data: values }] },
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ y:{ beginAtZero:true } }
+            }
+        });
+
+        // Mantengo tu flujo original:
+        setupUsoLabToggle();
+    }
+
+    // ===== Top Estudiantes (top 10, barras horizontales) =====
+    let CH_TopEst;
+    function renderBarTopEstudiantes(rows){
+        const el = document.getElementById('chTopEst'); if(!el) return;
+        if (CH_TopEst) CH_TopEst.destroy();
+        if (!Array.isArray(rows) || !rows.length) return;
+
+        const orden = [...rows].sort((a,b)=> (b.total_asistencias||0)-(a.total_asistencias||0)).slice(0,10);
+        const labels = orden.map(r => r.estudiante);
+        const values = orden.map(r => Number(r.total_asistencias||0));
+
+        CH_TopEst = new Chart(el, {
+            type:'bar',
+            data:{ labels, datasets:[{ data: values }] },
+            options:{
+                indexAxis:'y',
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ x:{ beginAtZero:true } }
+            }
+        });
+    }
+
+    // ===== Carga de Docentes (top 10) =====
+    let CH_CargaDoc;
+    function renderBarCargaDocentes(rows){
+        const el = document.getElementById('chCargaDoc'); if(!el) return;
+        if (CH_CargaDoc) CH_CargaDoc.destroy();
+        if (!Array.isArray(rows) || !rows.length) return;
+
+        const orden = [...rows].sort((a,b)=> (b.total_asignaciones||0)-(a.total_asignaciones||0)).slice(0,10);
+        const labels = orden.map(r => r.docente);
+        const values = orden.map(r => Number(r.total_asignaciones||0));
+
+        CH_CargaDoc = new Chart(el, {
+            type:'bar',
+            data:{ labels, datasets:[{ data: values }] },
+            options:{
+                indexAxis:'y',
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{display:false} },
+                scales:{ x:{ beginAtZero:true } }
+            }
+        });
+    }
+
+    // ===== Tabla: Asistencia por materia =====
+    function renderTableAsistenciaMateria(rows){
+        const box = document.getElementById('tblAsistMateria'); if(!box) return;
+        if (!Array.isArray(rows) || !rows.length){
+            box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return;
+        }
+        const head = `
+    <thead><tr>
+      <th>Código</th><th>Materia</th><th>Fecha</th>
+      <th>Presentes</th><th>Ausentes</th><th>Registrados</th>
+    </tr></thead>`;
+        const body = rows.map(r=>`
+    <tr>
+      <td>${r.cod_materia||''}</td>
+      <td>${r.nombre_materia||''}</td>
+      <td>${r.fecha_clase||''}</td>
+      <td>${r.presentes||0}</td>
+      <td>${r.ausentes||0}</td>
+      <td>${r.registrados||0}</td>
+    </tr>`).join('');
+        box.innerHTML = `<table class="table">${head}<tbody>${body}</tbody></table>`;
+    }
+
+    // ===== Exports nuevos =====
+    document.getElementById('expTopEst')?.addEventListener('click', ()=>{
+        if (!CH_TopEst) return; const a=document.createElement('a');
+        a.href = CH_TopEst.toBase64Image(); a.download='top-estudiantes.png'; a.click();
+    });
+    document.getElementById('expCargaDoc')?.addEventListener('click', ()=>{
+        if (!CH_CargaDoc) return; const a=document.createElement('a');
+        a.href = CH_CargaDoc.toBase64Image(); a.download='carga-docentes.png'; a.click();
+    });
+
+    // ===== KPIs =====
+    function calcKPIs(usoLabs, fallos, topEst){
+        let sum = 0, n = 0, horas = 0;
+        if (usoLabs?.length){
+            const sample = usoLabs[0];
+            const kNum = Object.keys(sample).filter(k => typeof sample[k]==='number');
+            const kUso = kNum.find(k=>/uso|porcentaje/i.test(k));
+            const kHoras = kNum.find(k=>/hora/i.test(k));
+            usoLabs.forEach(r=>{
+                if (kUso!=null && typeof r[kUso]==='number'){ sum += r[kUso]; n++; }
+                if (kHoras!=null && typeof r[kHoras]==='number'){ horas += r[kHoras]; }
+            });
+        }
+        document.getElementById('kpiUso')?.replaceChildren(document.createTextNode(n? `${(sum/n).toFixed(1)}%` : '—'));
+        document.getElementById('kpiHoras')?.replaceChildren(document.createTextNode(horas? horas.toLocaleString() : '—'));
+        document.getElementById('kpiIncidencias')?.replaceChildren(document.createTextNode(fallos?.length || 0));
+        document.getElementById('kpiUsuarios')?.replaceChildren(document.createTextNode(topEst?.length || 0));
+    }
+
+    async function loadOverview(){
+        const q = buildParams();
+        try {
+            const [
+                usoLabs,
+                fallosMens,
+                fallos,
+                topEst,
+                ocupacion,
+                cargaDoc,
+                asistMateria,
+            ] = await Promise.all([
+                fetchJSON('/api/reportes-freddy/uso-laboratorios'+q),
+                fetchJSON('/api/reportes-freddy/fallos-mensuales'+q),
+                fetchJSON('/api/reportes-freddy/fallos'+q),
+                fetchJSON('/api/reportes-freddy/top-estudiantes'+q),
+                fetchJSON('/api/reportes-freddy/ocupacion-laboratorios'+q),
+                fetchJSON('/api/reportes-freddy/carga-docentes'+q),
+                fetchJSON('/api/reportes-freddy/asistencia-materia'+q),
+            ]);
+            LAST_EstadoFallos = fallos;
+            LAST_UsoSem       = ocupacion;
+            LAST_TopEst       = topEst;
+            LAST_CargaDoc     = cargaDoc;
+            LAST_FallosMens   = fallosMens;
+            // KPIs
+            calcKPIs(usoLabs, fallos, topEst);
+
+            // Renders
+            renderBarUsoLab_Fixed(usoLabs);
+            renderLineFallosMes(fallosMens);
+            renderLineUsoSemanal_Ocupacion(ocupacion);
+            renderPieEstadoEquipos(fallos);
+            renderBarTopEstudiantes(topEst);
+            renderBarCargaDocentes(cargaDoc);
+            renderTableAsistenciaMateria(asistMateria);
+
+            renderPresetReports?.();
+        } catch (e) {
+            console.error('loadOverview() error:', e);
+        }
+        await loadResumenSistema();
+    }
+
+
+
+
+
+    document.getElementById('expSemanal')?.addEventListener('click', ()=>{
+        if (!CH_Semanal) return;
+        const a = document.createElement('a');
+        a.href = CH_Semanal.toBase64Image();
+        a.download = 'uso-semanal.png';
+        a.click();
+    });
+
+    // ===== Eventos =====
+    document.getElementById('btnAplicar')?.addEventListener('click', loadOverview);
+
+    // ===== Export PNG =====
+    function exportPNG(chart, file){ if(!chart) return; const a=document.createElement('a'); a.href=chart.toBase64Image(); a.download=file; a.click(); }
+    document.getElementById('expUsoLab')?.addEventListener('click', ()=> exportPNG(CH_UsoLab,'uso-por-laboratorio.png'));
+    document.getElementById('expFallosMes')?.addEventListener('click', ()=> exportPNG(CH_FallosMes,'tendencia-mensual.png'));
+
+    // ===== Mostrar/ocultar fechas si el usuario elige "Rango personalizado" =====
+    document.getElementById('periodo')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const desde = document.getElementById('desde');
+        const hasta = document.getElementById('hasta');
+        if (val === 'rango') {
+            desde.style.display = '';
+            hasta.style.display = '';
+        } else {
+            desde.style.display = 'none';
+            hasta.style.display = 'none';
+            desde.value = '';
+            hasta.value = '';
+        }
+    });
+
+    // === Exportar tabla como CSV (Asistencia por materia) ===
+    function exportTableAsCSV(containerId, filename){
+        const box = document.getElementById(containerId); if(!box) return;
+        const table = box.querySelector('table'); if(!table) return;
+        const rows = table.querySelectorAll('tr');
+        const csv = [];
+        rows.forEach(row=>{
+            const cells = row.querySelectorAll('th,td');
+            const vals = Array.from(cells).map(c => `"${(c.textContent||'').trim().replace(/"/g,'""')}"`);
+            csv.push(vals.join(','));
+        });
+        const blob = new Blob([csv.join('\n')], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+    document.getElementById('expAsistMateria')?.addEventListener('click', () => {
+        exportTableAsCSV('tblAsistMateria','asistencia-por-materia.csv');
+    });
+
+    // ====== Layout básico: sidebar y menú de usuario ======
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const userInfo = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName = document.getElementById('userName');
+    const userAvatar = document.getElementById('userAvatar');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+    menuToggle?.addEventListener('click', ()=>{
+        sidebar?.classList.toggle('hidden');
+        mainContent?.classList.toggle('expanded');
+    });
+
+    userInfo?.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        userDropdown?.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e)=>{
+        if (userDropdown && !userDropdown.contains(e.target) && !userInfo.contains(e.target)) {
+            userDropdown.classList.remove('show');
+        }
+    });
+
+    (function(){
+        const n = sessionStorage.getItem('nombreUsuario') || 'Administrador';
+        if (userName) userName.textContent = n;
+        if (userAvatar) userAvatar.textContent = ini(n);
+    })();
+
+    function handleResize(){
+        if (window.innerWidth <= 768) {
+            sidebar?.classList.add('hidden');
+            mainContent?.classList.add('expanded');
+        } else {
+            sidebar?.classList.remove('hidden');
+            mainContent?.classList.remove('expanded');
+        }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    /* ===========================
+       TABLA USO LAB (tu lógica)
+       =========================== */
+    let LAST_UsoLab = []; // guardamos los datos del gráfico para la tabla
+    let LAST_EstadoFallos = [];
+    let LAST_UsoSem = [];
+    let LAST_TopEst = [];
+    let LAST_CargaDoc = [];
+    let LAST_FallosMens = [];
+
+    function renderTableEstado(fallos){
+        const box = document.getElementById('tblEstado'); if(!box) return;
+        if(!Array.isArray(fallos) || !fallos.length){ box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return; }
+        const key='estado_reporte';
+        const map = new Map();
+        fallos.forEach(r=>{
+            const k = String(r[key] ?? 'N/D');
+            map.set(k, (map.get(k)||0)+1);
+        });
+        const rows = [...map.entries()].map(([k,v])=> `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+        box.innerHTML = `<table class="table-theme"><thead><tr><th>Estado</th><th>Cantidad</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+    }
+
+    function renderTableUsoSem(rows){
+        const box = document.getElementById('tblUsoSem'); if(!box) return;
+        if(!Array.isArray(rows) || !rows.length){ box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return; }
+        const DIAS_ES  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+        const DIAS_OUT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+        const acc = new Array(7).fill(0);
+        rows.forEach(r=>{ const i = DIAS_ES.indexOf(String(r.dia_semana||'').trim()); if(i>=0) acc[i]+= Number(r.ocupacion||0); });
+        const body = acc.map((v,i)=> `<tr><td>${DIAS_OUT[i]}</td><td>${v}</td></tr>`).join('');
+        box.innerHTML = `<table class="table-theme"><thead><tr><th>Día</th><th>Ocupación</th></tr></thead><tbody>${body}</tbody></table>`;
+
+    }
+
+    function renderTableTopEstudiantes(rows){
+        const box = document.getElementById('tblTopEst'); if(!box) return;
+        if(!Array.isArray(rows) || !rows.length){ box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return; }
+        const orden = [...rows].sort((a,b)=> (b.total_asistencias||0)-(a.total_asistencias||0)).slice(0,10);
+        const body = orden.map(r=> `<tr><td>${r.estudiante||''}</td><td>${Number(r.total_asistencias||0)}</td></tr>`).join('');
+        box.innerHTML = `<table class="table-theme"><thead><tr><th>Estudiante</th><th>Asistencias</th></tr></thead><tbody>${body}</tbody></table>`;
+
+    }
+
+    function renderTableCargaDocentes(rows){
+        const box = document.getElementById('tblCargaDoc'); if(!box) return;
+        if(!Array.isArray(rows) || !rows.length){ box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return; }
+        const orden = [...rows].sort((a,b)=> (b.total_asignaciones||0)-(a.total_asignaciones||0)).slice(0,10);
+        const body = orden.map(r=> `<tr><td>${r.docente||''}</td><td>${Number(r.total_asignaciones||0)}</td></tr>`).join('');
+        box.innerHTML = `<table class="table-theme"><thead><tr><th>Docente</th><th>Asignaciones</th></tr></thead><tbody>${body}</tbody></table>`;
+
+    }
+
+    function renderTableFallosMens(rows){
+        const box = document.getElementById('tblFallosMes'); if(!box) return;
+        if(!Array.isArray(rows) || !rows.length){ box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return; }
+        const keys = Object.keys(rows[0]||{});
+        const labelKey = keys.find(k=>/mes|fecha|periodo/i.test(k)) || keys[0];
+        const valueKey = keys.find(k=>/total|cantidad|fallos|incidencias/i.test(k) && typeof rows[0][k]==='number')
+            || keys.find(k=> typeof rows[0][k]==='number') || keys[1];
+        const body = rows.map(r=> `<tr><td>${String(r[labelKey])}</td><td>${Number(r[valueKey]||0)}</td></tr>`).join('');
+        box.innerHTML = `<table class="table-theme"><thead><tr><th>Periodo</th><th>Total</th></tr></thead><tbody>${body}</tbody></table>`;
+
+    }
+    function renderTableUsoLab(rows){
+        const box = document.getElementById('tblUsoLab'); if(!box) return;
+        if(!Array.isArray(rows) || !rows.length){
+            box.innerHTML = '<div style="padding:12px;color:#6a7a6d">Sin datos</div>'; return;
+        }
+        const hasPct = rows.some(r => typeof r.porcentaje_uso === 'number' || typeof r.porcentaje === 'number');
+        const head = `
+    <thead><tr>
+      <th>Laboratorio</th>
+      <th>Asignaciones</th>
+      ${hasPct ? '<th>% Uso</th>' : ''}
+    </tr></thead>`;
+        const body = rows.map(r=>{
+            const pct = (r.porcentaje_uso ?? r.porcentaje);
+            return `<tr>
+      <td>${r.nombre_laboratorio ?? ''}</td>
+      <td>${Number(r.total_asignaciones||0).toLocaleString()}</td>
+      ${hasPct ? `<td>${pct!=null ? Number(pct).toFixed(1)+'%' : ''}</td>` : ''}
+    </tr>`;
+        }).join('');
+        box.innerHTML = `<table class="table">${head}<tbody>${body}</tbody></table>`;
+    }
+
+
+    function setupUsoLabToggle(){
+        const btn = document.getElementById('btnTabUsoLab');
+        const box = document.getElementById('tblUsoLab');
+        if(!btn || !box) return;
+        btn.style.display = 'inline-flex';
+        btn.textContent = (box.style.display === 'none') ? 'Mostrar tabla' : 'Ocultar tabla';
+        btn.onclick = ()=>{
+            if(box.style.display === 'none'){
+                if(!box.innerHTML.trim()) renderTableUsoLab(LAST_UsoLab);
+                box.style.display = '';
+                btn.textContent = 'Ocultar tabla';
+            }else{
+                box.style.display = 'none';
+                btn.textContent = 'Mostrar tabla';
+            }
+        };
+    }
+
+    /* ===========================
+       NUEVO: toggles genéricos (sin tocar UsoLab)
+       =========================== */
+    function setupToggle(btnId, boxId, onOpen){
+        const btn = document.getElementById(btnId);
+        const box = document.getElementById(boxId);
+        if(!btn || !box) return;
+
+        btn.style.display = 'inline-flex';
+
+        const setTxt = (open)=> {
+            btn.innerHTML = open
+                ? '<i class="fas fa-table"></i> Ocultar tabla'
+                : '<i class="fas fa-table"></i> Mostrar tabla';
+        };
+        setTxt(box.style.display !== 'none');
+
+        btn.onclick = () => {
+            const opening = box.style.display === 'none';
+            if (opening) {
+                // pinta la tabla solo cuando se abre y si aún no existe una <table>
+                if (typeof onOpen === 'function' && !box.querySelector('table')) onOpen();
+                box.style.display = '';
+            } else {
+                box.style.display = 'none';
+            }
+            setTxt(opening);
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+        // ⚠️ NO toques UsoLab: mantiene tu setupUsoLabToggle()
+        setupToggle('btnTabEstado',    'tblEstado',    ()=> renderTableEstado(LAST_EstadoFallos));
+        setupToggle('btnTabUsoSem',    'tblUsoSem',    ()=> renderTableUsoSem(LAST_UsoSem));
+        setupToggle('btnTabTopEst',    'tblTopEst',    ()=> renderTableTopEstudiantes(LAST_TopEst));
+        setupToggle('btnTabCargaDoc',  'tblCargaDoc',  ()=> renderTableCargaDocentes(LAST_CargaDoc));
+        setupToggle('btnTabFallosMes', 'tblFallosMes', ()=> renderTableFallosMens(LAST_FallosMens));
+    });
+
+
+    // === Mapeos: botón -> contenedor y botón -> función para pintar tabla ===
+
+    // ⚠️ IMPORTANTE: eliminamos la línea suelta que rompía el JS:
+    // if(id === 'cardUsoLab'){ setupUsoLabToggle(); }  // <- QUITADA
+
+</script>
+</body>
+</html>

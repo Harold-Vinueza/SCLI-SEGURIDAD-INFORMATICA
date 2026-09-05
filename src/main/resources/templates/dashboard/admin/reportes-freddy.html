@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reportes </title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+
+    <style>
+        .grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:14px}
+        @media (max-width:900px){.grid{grid-template-columns:1fr}}
+        .tile{display:flex;gap:12px;align-items:center;border:1px solid var(--border-light);
+            border-radius:12px;padding:14px;background:#fff;text-decoration:none;color:#111}
+        .tile:hover{background:#f8fafc}
+        .icon{width:40px;height:40px;border-radius:10px;background:#0a7c3a;color:#fff;
+            display:flex;align-items:center;justify-content:center}
+        .title{font-weight:600}
+        .sub{color:#6b7280;font-size:.92rem}
+    </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR (igual que materias) ===== -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-desktop"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/admin/horarios}" class="nav-item"><i class="fas fa-calendar-alt"></i> Horarios</a>
+        <a th:href="@{/dashboard/admin/admin-usuarios}" class="nav-item"><i class="fas fa-users"></i> Gestión de Usuarios</a>
+        <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+        <a th:href="@{/dashboard/admin/auditorias}" class="nav-item"><i class="fas fa-search"></i> Auditorías</a>
+        <a th:href="@{/dashboard/admin/materias}" class="nav-item"><i class="fas fa-book"></i> Materias</a>
+        <!-- Activo en Reportes -->
+        <a th:href="@{/dashboard/admin/reportes}" class="nav-item active"><i class="fas fa-chart-bar"></i> Reportes </a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('En esta vista puedes acceder a los distintos reportes del sistema.')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<!-- ===== MAIN ===== -->
+<main class="main-content" id="mainContent">
+    <!-- Header -->
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">AD</div>
+                <span id="userName">Usuario.Admin</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+        <!-- TÍTULO igual que Materias -->
+        <h1 class="page-title"><i class="fas fa-chart-bar"></i> Reportes</h1>
+
+        <!-- Texto de ayuda -->
+        <div class="announcements-section">
+            Selecciona el tipo de reporte que deseas consultar.
+        </div>
+
+        <!-- GRID de accesos -->
+        <div class="announcements-section" style="padding-top:0">
+            <div class="grid">
+                <a th:href="@{/dashboard/admin/reportes/asistencia-materia}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-book"></i></div>
+                    <div><div class="title">Asistencia por Materia</div><div class="sub">Filtra por período, carrera y materia</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/uso-laboratorios}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-flask"></i></div>
+                    <div><div class="title">Uso de Laboratorios</div><div class="sub">Ocupación por día, hora y jornada</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/carga-docentes}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <div><div class="title">Carga de Docentes</div><div class="sub">Horas planificadas y ejecutadas</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/top-estudiantes}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div><div class="title">Top Estudiantes</div><div class="sub">Asistencia y uso de laboratorio</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/reporte-fallos}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div><div class="title">Reporte de Fallos</div><div class="sub">Incidentes, estados y tiempos</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/tendencia-fallos}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <div><div class="title">Tendencia de Fallos</div><div class="sub">Series por mes y laboratorio</div></div>
+                </a>
+
+                <a th:href="@{/dashboard/admin/reportes/ocupacion-laboratorios}" class="tile">
+                    <div class="icon"><i class="fa-solid fa-desktop"></i></div>
+                    <div><div class="title">Ocupación de Laboratorios</div><div class="sub">Distribución por franja horaria</div></div>
+                </a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Script (igual que materias para menú/usuario) -->
+<script>
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const userInfo = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName = document.getElementById('userName');
+    const userAvatar = document.getElementById('userAvatar');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); location.href='/login'; });
+
+    function handleResize(){ if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+    else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); } }
+    handleResize(); window.addEventListener('resize', handleResize);
+</script>
+</body>
+</html>

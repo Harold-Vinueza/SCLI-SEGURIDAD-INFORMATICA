@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Planificación de horarios</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Tema global con rompe-caché + fallback -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    .filters{display:flex;gap:12px;margin:12px 0;flex-wrap:wrap;align-items:center}
+    .filters label{font-size:.9rem;color:#6b7280}
+    .filters select,.filters button{padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+    .pill{background:#F1F5F9;border:1px solid #E5E7EB;border-radius:999px;padding:6px 12px;color:#334155}
+    .table-wrap{overflow:auto}
+    .timetable{width:100%;border-collapse:collapse}
+    .timetable th,.timetable td{border:1px solid var(--border-light);padding:12px;min-width:140px;vertical-align:top}
+    .timetable thead th{background:#F9FAF7;color:#334155;font-weight:600}
+    .timetable td em{color:#6c757d}
+
+    /* Resaltar celdas con asignación */
+    .timetable td.asignado{
+      background:#E9F8EE;
+      border-color:#B7E0C2;
+    }
+    .timetable td.asignado div{
+      color:#14532d;
+      font-weight:600;
+    }
+    .timetable td.asignado:hover{ filter:brightness(0.98); }
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1050}
+    .modal.open{display:flex}
+    .modal .box{background:#fff;padding:16px;border-radius:12px;min-width:360px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .modal .box input,.modal .box select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+    .notice{padding:14px;color:#475569}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (tema global) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+      <a th:href="@{/dashboard/admin/horarios}" class="nav-item active"><i class="fas fa-calendar-alt"></i> Horarios</a>
+      <a th:href="@{/dashboard/admin/admin-usuarios}" class="nav-item"><i class="fas fa-users"></i> Gestión de Usuarios</a>
+      <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="showHelp()"><i class="fas fa-question-circle"></i> Ayuda</button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <!-- Header (tema global) -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-calendar-alt"></i> Planificación de horarios</h1>
+
+      <!-- ===== Filtros ===== -->
+      <div class="announcements-section">
+        <div class="filters">
+          <div>
+            <label>Laboratorio</label><br/>
+            <select id="selLab"></select>
+          </div>
+          <div>
+            <label>Periodo</label><br/>
+            <select id="selPeriodo"></select>
+          </div>
+          <div>
+            <label>Jornada</label><br/>
+            <select id="selJornada">
+              <option value="Matutina">Matutina</option>
+              <option value="Vespertina">Vespertina</option>
+            </select>
+          </div>
+
+          <button id="btnReload" type="button" class="btn"><i class="fas fa-sync"></i> Recargar</button>
+
+          <button id="btnAbrir"  type="button" class="pill" title="Activar período seleccionado">Abrir período</button>
+          <button id="btnCerrar" type="button" class="pill" title="Desactivar período seleccionado">Cerrar período</button>
+
+          <span id="contador" class="pill">Cargando...</span>
+          <a id="btnPdf" href="#" class="pill" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+            <!-- <i class="fas fa-file-pdf"></i> E-->
+          </a>
+        </div>
+      </div>
+
+      <!-- ===== Tabla semanal ===== -->
+      <div class="announcements-section table-wrap">
+        <table class="timetable" id="tblSemana">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySemana">
+            <tr><td colspan="6" class="notice">Seleccione un laboratorio y un período activo.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Modal asignación ===== -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <div class="box">
+      <h3 id="modalTitle" style="margin:0 0 8px 0">Nueva asignación</h3>
+      <form id="formAsign" style="display:grid;gap:10px">
+        <input type="hidden" id="inpHorario">
+        <input type="hidden" id="inpAsignId">
+
+        <div>
+          <label>Buscar materia:</label>
+          <input type="text" id="inpBusqMateria" placeholder="Código o nombre...">
+        </div>
+
+        <div>
+          <label>Materia:</label>
+          <select id="selMateria" required>
+            <option value="" selected disabled>-- Seleccione materia --</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Docente (opcional):</label>
+          <select id="selDocente">
+            <option value="">-- Seleccione docente --</option>
+          </select>
+        </div>
+
+        <div id="err" style="color:#b00020"></div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="btnDelete" class="pill" style="margin-right:auto;display:none"><i class="fa fa-trash"></i> Eliminar</button>
+          <button type="button" id="btnCancel" class="logout" style="padding:6px 10px;border-radius:8px">Cancelar</button>
+          <button id="btnSubmit" type="submit" class="btn">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script th:inline="javascript">
+    // ===== util SweetAlert2 =====
+    const toast = (icon, title) =>
+      Swal.fire({toast:true, position:'top-end', icon, title, showConfirmButton:false, timer:1700, timerProgressBar:true});
+    const swalInfo = (title, text='') =>
+      Swal.fire({icon:'info', title, text, confirmButtonText:'Entendido'});
+    const swalError = (title, text='') =>
+      Swal.fire({icon:'error', title, text, confirmButtonText:'Cerrar'});
+    const swalConfirm = (title, text) =>
+      Swal.fire({
+        icon:'question', title, text,
+        showCancelButton:true,
+        confirmButtonText:'Sí, continuar',
+        cancelButtonText:'Cancelar',
+        confirmButtonColor:'#1B7505'
+      });
+
+    // Sesión a UI (comunes)
+    const _nombre = /*[[${session.nombreUsuario}]]*/ 'Administrador';
+    const _rol    = /*[['' + ${session.rol}]]*/ 'ADMIN';
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); window.location.href='/login'; });
+
+    function showHelp(){
+      Swal.fire({
+        icon:'info',
+        title:'Planificación de horarios',
+        html:'Seleccione laboratorio, período y jornada.<br>Haga clic en una celda para crear o editar una asignación.<br><small>Los botones <b>Abrir/Cerrar período</b> sólo funcionan si hay un período seleccionado.</small>',
+        confirmButtonText:'OK'
+      })
+    }
+    window.showHelp = showHelp;
+
+    // ===== Helpers =====
+    const $ = (s)=>document.querySelector(s);
+
+    function setEmptyMessage(msg){
+      const tbody = $('#tbodySemana');
+      tbody.innerHTML = `<tr><td colspan="6" class="notice">${msg}</td></tr>`;
+    }
+
+    // ===== API =====
+    const API = {
+      labs      : ()=>fetch('/api/planif/labs').then(r=>r.json()),
+      periodos  : ()=>fetch('/api/planif/periodos/activos').then(r=>r.json()),
+      periodo   : (id)=>fetch(`/api/planif/periodos/${id}`).then(r=>r.ok?r.json():Promise.reject()),
+      setPeriodoEstado: (id,activo)=>fetch(`/api/planif/periodos/${id}/estado?activo=${activo}`,{method:'PATCH'}).then(r=>r.json()),
+
+      grilla    : (lab,per,j)=>fetch(`/api/planif/asignaciones/semana?lab=${lab}&periodo=${per}&jornada=${encodeURIComponent(j)}`).then(r=>r.json()),
+      bloques   : (j)=>fetch(`/api/planif/horarios/bloques?jornada=${encodeURIComponent(j)}`).then(r=>r.json()),
+      contador  : (lab,per)=>fetch(`/api/planif/asignaciones/contador?lab=${lab}&periodo=${per}`).then(r=>r.json()),
+
+      crear     : (payload)=>fetch('/api/planif/asignaciones',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>({ok:r.ok,body:await r.json()})),
+      actualizar: (id,payload)=>fetch(`/api/planif/asignaciones/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>({ok:r.ok,body:await r.json()})),
+      eliminar  : (id)=>fetch(`/api/planif/asignaciones/${id}`,{method:'DELETE'}).then(async r=>({ok:r.ok,body:await r.json()})),
+
+      asigCelda : (lab,per,hor)=>fetch(`/api/planif/asignaciones/celda?lab=${lab}&periodo=${per}&horario=${hor}`).then(r=>r.status===204?null:r.json()),
+      materias  : (q)=>fetch(`/api/planif/materias${q?`?q=${encodeURIComponent(q)}`:''}`).then(r=>r.json()),
+      docentesPorMateria:(id)=>fetch(`/api/planif/materias/${id}/docentes`).then(r=>r.json()),
+    };
+
+    // ===== Estado =====
+    const state = {
+      lab:null, periodo:null, jornada:'Matutina', bloques:[],
+      editId:null, horId:null
+    };
+
+    // ===== Init =====
+    (async function init(){
+      try{
+        const [labs,periodos] = await Promise.all([API.labs(), API.periodos()]);
+        const selLab = $('#selLab'), selPer = $('#selPeriodo');
+
+        // labs
+        labs.forEach(o => { const opt=document.createElement('option'); opt.value=o.id; opt.textContent=o.label; selLab.append(opt); });
+
+        // periodos activos (puede venir vacío)
+        if (periodos.length === 0) {
+          const opt=document.createElement('option');
+          opt.value=''; opt.textContent='-- Sin periodos activos --'; opt.disabled=true; opt.selected=true;
+          selPer.append(opt);
+          state.periodo = null;
+        } else {
+          periodos.forEach(o => { const opt=document.createElement('option'); opt.value=o.id; opt.textContent=o.label; selPer.append(opt); });
+          state.periodo = parseInt(periodos[0].id,10);
+          selPer.value = String(state.periodo);
+        }
+
+        // pre-selección lab y jornada
+        state.lab     = labs?.[0]?.id ?? null;
+        if (state.lab != null) selLab.value = String(state.lab);
+        state.jornada = $('#selJornada').value;
+
+        // listeners
+        selLab.onchange = reload;
+        selPer.onchange = reload;
+        $('#selJornada').onchange = reload;
+        $('#btnReload').onclick = reload;
+        $('#btnPdf').onclick = e => { e.preventDefault(); swalInfo('Exportar PDF','Función pendiente'); };
+
+        // Abrir / Cerrar período
+        $('#btnAbrir').addEventListener('click', async ()=>{
+          if (state.periodo == null) return swalInfo('Seleccione un período','Debe elegir un período activo.');
+          await API.setPeriodoEstado(state.periodo, true);
+          await paintPeriodoButtons();
+          await reload();
+          toast('success','Período activado');
+        });
+        $('#btnCerrar').addEventListener('click', async ()=>{
+          if (state.periodo == null) return swalInfo('Seleccione un período','Debe elegir un período activo.');
+          await API.setPeriodoEstado(state.periodo, false);
+          await paintPeriodoButtons();
+          await reload();
+          toast('success','Período desactivado');
+        });
+
+        await reload();
+      }catch(e){
+        console.error(e);
+        setEmptyMessage('Error cargando datos iniciales.');
+        swalError('Error', 'No se pudieron cargar los datos iniciales.');
+      }
+    })();
+
+    // ===== Recarga =====
+    async function reload(){
+      const labVal = $('#selLab').value;
+      const perVal = $('#selPeriodo').value;
+
+      state.lab     = labVal ? parseInt(labVal,10) : null;
+      state.periodo = perVal ? parseInt(perVal,10) : null;
+      state.jornada = $('#selJornada').value;
+
+      // bloques (no dependen de periodo)
+      state.bloques = await API.bloques(state.jornada);
+
+      await renderContador();
+      await paintPeriodoButtons();
+
+      if (state.lab == null || state.periodo == null){
+        setEmptyMessage('Seleccione un laboratorio y un período activo.');
+        return;
+      }
+      await renderTabla();
+    }
+
+    async function paintPeriodoButtons(){
+      const abrir  = $('#btnAbrir');
+      const cerrar = $('#btnCerrar');
+
+      if (state.periodo == null){
+        abrir.disabled = true;
+        cerrar.disabled = true;
+        return;
+      }
+      try{
+        const p = await API.periodo(state.periodo); // {activo: true|false}
+        const abierto = !!(p && p.activo === true);
+        abrir.disabled  = abierto;
+        cerrar.disabled = !abierto;
+      }catch(_){
+        abrir.disabled = false;
+        cerrar.disabled = false;
+      }
+    }
+
+    async function renderTabla(){
+      try{
+        const data = await API.grilla(state.lab, state.periodo, state.jornada);
+        const tbody = $('#tbodySemana'); tbody.innerHTML='';
+
+        if (!Array.isArray(data) || data.length === 0){
+          setEmptyMessage('Sin datos para mostrar en este período.');
+          return;
+        }
+
+        data.forEach((row, idx) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th'); th.textContent = row.bloque; tr.append(th);
+          ['lunes','martes','miercoles','jueves','viernes'].forEach(d=>{
+            const td = document.createElement('td');
+            const texto = row[d] ?? '';
+
+            td.innerHTML = texto ? `<div>${texto}</div>` : `<em>vacío</em>`;
+            if (texto && String(texto).trim().length > 0) td.classList.add('asignado');
+
+            td.style.cursor='pointer';
+            td.onclick = () => openModalFor(idx, d);
+            tr.append(td);
+          });
+          tbody.append(tr);
+        });
+      }catch(e){
+        console.error(e);
+        setEmptyMessage('Error cargando la grilla.');
+        swalError('Error','No se pudo cargar la grilla de horarios.');
+      }
+    }
+
+    async function renderContador(){
+      const pill = $('#contador');
+      if (state.lab == null || state.periodo == null){
+        pill.textContent = 'Cargando...';
+        return;
+      }
+      try{
+        const c = await API.contador(state.lab, state.periodo);
+        const tot = c?.totalAsignadas ?? c?.total_asignadas ?? 0;
+        const mA  = c?.matutinaAsignadas ?? c?.matutina_asignadas ?? 0;
+        const vA  = c?.vespertinaAsignadas ?? c?.vespertina_asignadas ?? 0;
+        pill.textContent = `Total: ${tot}/50 | M: ${mA}/25 | V: ${vA}/25`;
+      }catch{
+        pill.textContent = 'Contador: error';
+      }
+    }
+
+    // ===== Modal =====
+    const modal = $('#modal'), err = $('#err');
+    const btnSubmit = document.querySelector('#formAsign button[type="submit"]');
+    const btnDelete = document.getElementById('btnDelete');
+
+    async function openModalFor(bloqueIndex, diaKey){
+      if (state.periodo == null) { swalInfo('Seleccione un período','Debe elegir un período activo.'); return; }
+      err.textContent='';
+      const diaNombre = ({lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes'})[diaKey];
+      const delDia = state.bloques.filter(b => b.dia_semana === diaNombre);
+      const h = delDia[bloqueIndex % (delDia.length||1)];
+      if (!h){ return swalError('No se encontró el bloque','Verifique la jornada configurada.'); }
+
+      state.horId = parseInt(h.id_horario,10);
+      document.getElementById('inpHorario').value = state.horId;
+
+      await cargarMaterias();
+      await cargarDocentesDeMateria(null);
+
+      const asig = await API.asigCelda(state.lab, state.periodo, state.horId);
+      if (asig) {
+        state.editId = parseInt(asig.id_asignacion,10);
+        document.getElementById('selMateria').value = String(asig.id_materia || '');
+        await cargarDocentesDeMateria(asig.id_materia || null);
+        if (asig.id_docente) document.getElementById('selDocente').value = String(asig.id_docente);
+        btnSubmit.textContent = 'Actualizar';
+        btnDelete.style.display = '';
+        btnDelete.onclick = async () => {
+          if (!state.editId) return;
+          const {isConfirmed} = await swalConfirm('Eliminar asignación','¿Desea eliminar la asignación de esta celda?');
+          if (!isConfirmed) return;
+          const res = await API.eliminar(state.editId);
+          if (res.ok || (res.body && res.body.error === 'Ya no existe')) {
+            modal.classList.remove('open');
+            await reload();
+            toast('success','Asignación eliminada');
+            return;
+          }
+          err.textContent = res.body?.error || 'Error eliminando';
+          swalError('Error', err.textContent);
+        };
+      } else {
+        state.editId = null;
+        btnSubmit.textContent = 'Guardar';
+        btnDelete.style.display = 'none';
+      }
+
+      modal.classList.add('open');
+    }
+
+    document.getElementById('btnCancel').onclick = ()=> modal.classList.remove('open');
+
+    document.getElementById('formAsign').onsubmit = async (e)=>{
+      e.preventDefault(); err.textContent='';
+      const idMateria = parseInt(document.getElementById('selMateria').value,10);
+      if(!idMateria){ err.textContent='Seleccione una materia.'; return; }
+      const idDoc = document.getElementById('selDocente').value ? parseInt(document.getElementById('selDocente').value,10) : null;
+
+      const payload = {
+        idLaboratorio: state.lab,
+        idPeriodo: state.periodo,
+        idHorario: state.horId,
+        idDocente: idDoc,
+        idMateria: idMateria
+      };
+
+      const updating = !!state.editId;
+      const res = updating
+        ? await API.actualizar(state.editId, payload)
+        : await API.crear(payload);
+
+      if(!res.ok){
+        const msg = res.body?.error || 'Ocurrió un error';
+        err.textContent = msg;
+        swalError('Error', msg);
+        return;
+      }
+      modal.classList.remove('open');
+      await reload();
+      toast('success', updating ? 'Asignación actualizada' : 'Asignación guardada');
+    };
+
+    // catálogos
+    async function cargarMaterias(q){
+      const sel = document.getElementById('selMateria');
+      sel.innerHTML = `<option value="" selected disabled>-- Seleccione materia --</option>`;
+      const list = await API.materias(q);
+      list.forEach(o=>{
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.label;
+        sel.append(opt);
+      });
+    }
+
+    async function cargarDocentesDeMateria(idMateria){
+      const sel = document.getElementById('selDocente');
+      sel.innerHTML = `<option value="">-- Seleccione docente --</option>`;
+      if(!idMateria) return;
+      const list = await API.docentesPorMateria(idMateria);
+      list.forEach(o=>{
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = o.label;
+        sel.append(opt);
+      });
+    }
+
+    // búsqueda de materia (debounce)
+    document.addEventListener('DOMContentLoaded', () => {
+      const inp = document.getElementById('inpBusqMateria');
+      const selMateria = document.getElementById('selMateria');
+      inp.addEventListener('input', debounce(async (e)=>{ await cargarMaterias(e.target.value); }, 300));
+      selMateria.addEventListener('change', async (e)=>{
+        const idMat = parseInt(e.target.value,10);
+        await cargarDocentesDeMateria(idMat);
+      });
+    });
+
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+  </script>
+</body>
+</html>

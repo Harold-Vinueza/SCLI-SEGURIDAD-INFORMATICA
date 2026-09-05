@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activos de laboratorio - SGIL</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global + rompe-caché -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .tab{padding:10px 14px;border-radius:12px;border:1px solid #e5e7eb;text-decoration:none;color:#111}
+    .tab.active{background:#1B7505;color:#fff;border-color:#1B7505}
+
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:12px 10px;border-bottom:1px solid #e5e7eb;text-align:left}
+    .table thead th{background:#F9FAF7;color:#334155;font-weight:600}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1050}
+    .modal-backdrop.open{display:flex}
+    .modal{background:#fff;width:min(560px,94vw);border-radius:14px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .modal h3{margin:0 0 10px 0}
+
+    .form-editing{outline:2px dashed #1B7505;border-radius:12px}
+    .muted{color:#6b7280;font-size:.9rem}
+    .stack{display:grid;gap:10px}
+
+    /* Inputs elegantes + foco visible */
+    .stack label input,
+    .stack label select,
+    .stack label textarea,
+    .stack input,
+    .stack select,
+    .stack textarea{
+      padding:10px 12px;border-radius:12px;border:1px solid #e5e7eb;width:100%;background:#fff;
+      transition: box-shadow .2s ease, border-color .2s ease;
+    }
+    .stack label input:focus,
+    .stack label select:focus,
+    .stack label textarea:focus,
+    .stack input:focus,
+    .stack select:focus,
+    .stack textarea:focus{
+      outline:none;border-color:#a3e635;box-shadow:0 0 0 4px rgba(163,230,53,.25);
+    }
+
+    /* Área desplazable (scroll) para tablas/listas */
+    .scroll-frame{max-height:calc(100vh - 360px);overflow:auto;padding:0;scrollbar-gutter:stable}
+    .scroll-frame::-webkit-scrollbar{width:10px;height:10px}
+    .scroll-frame::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:10px}
+    .scroll-frame::-webkit-scrollbar-thumb:hover{background:#9ca3af}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (tema global) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-microscope"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+    
+      <a th:href="@{/dashboard/admin/auditorias}" class="nav-item"><i class="fas fa-search"></i> Auditorías</a>
+      <a th:href="@{/dashboard/admin/laboratorios}" class="nav-item"><i class="fas fa-building"></i> Laboratorios</a>
+      <a th:href="@{/dashboard/admin/activos}" class="nav-item active"><i class="fas fa-plug"></i> Activos</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('En esta pantalla puedes crear, editar y eliminar equipos y mobiliario.\nTambién puedes reportar fallos de equipos.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <!-- Header (tema global) -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Flash/Toasts (ok/error del servidor) -->
+    <div id="flashOk"    th:if="${ok}"    th:text="${ok}"    style="display:none"></div>
+    <div id="flashError" th:if="${error}" th:text="${error}" style="display:none"></div>
+
+    <div id="toast" aria-live="polite" aria-atomic="true"
+         style="position:fixed;right:16px;top:16px;z-index:2000;display:none;
+                background:#fff;border:1px solid #e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.15);
+                padding:12px 14px;border-radius:12px;min-width:280px;font-weight:600">
+      <span id="toastIcon" style="margin-right:8px"></span>
+      <span id="toastMsg"></span>
+    </div>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-plug"></i> Activos de laboratorio</h1>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <a class="tab" th:classappend="${tab=='equipos'} ? ' active'" th:href="@{/dashboard/admin/activos(tab='equipos')}"><i class="fas fa-desktop"></i> Equipos</a>
+        <a class="tab" th:classappend="${tab=='mobiliario'} ? ' active'" th:href="@{/dashboard/admin/activos(tab='mobiliario')}"><i class="fas fa-chair"></i> Mobiliario</a>
+      </div>
+
+      <!-- Mensajes visibles -->
+      <div th:if="${ok}" class="announcements-section" th:text="${ok}" style="color:#1B7505"></div>
+      <div th:if="${error}" class="announcements-section" th:text="${error}" style="color:#E95F01"></div>
+
+      <!-- ====== TAB EQUIPOS ====== -->
+      <div th:if="${tab=='equipos'}">
+        <!-- Filtros -->
+        <div class="announcements-section">
+          <form th:action="@{/dashboard/admin/activos}" method="get" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+            <input type="hidden" name="tab" value="equipos"/>
+            <div class="stack">
+              <label>Buscar</label>
+              <input name="q" type="text" th:value="${q}" placeholder="código / tipo / marca / modelo">
+            </div>
+            <div class="stack">
+              <label>Laboratorio</label>
+              <select name="labId" style="min-width:220px">
+                <option value="" th:selected="${labId == null}">Todos</option>
+                <option th:each="l : ${labs}"
+                        th:value="${l.idLaboratorio}"
+                        th:text="${l.nombreLaboratorio}"
+                        th:selected="${labId != null and labId == l.idLaboratorio}">
+                </option>
+              </select>
+            </div>
+            <div class="stack">
+              <label>Estado</label>
+              <select name="estado">
+                <option value="" th:selected="${estado == null or estado == ''}">Todos</option>
+                <option value="activo" th:selected="${estado == 'activo'}">Activo</option>
+                <option value="inactivo" th:selected="${estado == 'inactivo'}">Inactivo</option>
+                <option value="mantenimiento" th:selected="${estado == 'mantenimiento'}">Mantenimiento</option>
+              </select>
+            </div>
+            <button class="btn" type="submit"><i class="fas fa-filter"></i> Filtrar</button>
+            <a class="btn" th:href="@{/dashboard/admin/activos(tab='equipos')}"><i class="fas fa-rotate"></i> Limpiar</a>
+          </form>
+        </div>
+
+        <div class="grid">
+          <!-- Form Equipo -->
+          <div class="announcements-section" id="formEquipoBox">
+            <h3 id="eqFormTitle" style="margin-top:0">Nuevo Equipo</h3>
+            <p class="muted" id="eqFormHint">Rellena los datos y pulsa Guardar.</p>
+            <form id="equipoFormEl" class="stack"
+                  th:object="${equipoForm}"
+                  th:action="@{/dashboard/admin/activos/equipos/crear}"
+                  method="post">
+              <label>Código <input id="eq-codigo" th:field="*{codigoEquipo}" required></label>
+              <label>Tipo <input id="eq-tipo" th:field="*{tipoEquipo}"></label>
+              <label>Marca <input id="eq-marca" th:field="*{marca}"></label>
+              <label>Modelo <input id="eq-modelo" th:field="*{modelo}"></label>
+              <label>Estado
+                <select id="eq-estado" th:field="*{estado}">
+                  <option value="">(selecciona)</option>
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                </select>
+              </label>
+              <label>Laboratorio
+                <select id="eq-lab" th:field="*{laboratorio.idLaboratorio}">
+                  <option value="">(selecciona)</option>
+                  <option th:each="l: ${labs}" th:value="${l.idLaboratorio}" th:text="${l.nombreLaboratorio}"></option>
+                </select>
+              </label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" id="eqSubmitBtn" type="submit"><i class="fas fa-save"></i> Guardar</button>
+                <button class="logout" id="eqCancelBtn" type="button" style="display:none"><i class="fas fa-ban"></i> Cancelar edición</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tabla Equipos -->
+          <div class="announcements-section scroll-frame">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Tipo</th>
+                  <th>Marca</th>
+                  <th>Modelo</th>
+                  <th>Estado</th>
+                  <th>Laboratorio</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+              <tr th:each="e: ${equipos}">
+                <td th:text="${e.codigoEquipo}"></td>
+                <td th:text="${e.tipoEquipo}"></td>
+                <td th:text="${e.marca}"></td>
+                <td th:text="${e.modelo}"></td>
+                <td th:text="${e.estado}"></td>
+                <td th:text="${e.laboratorio != null ? e.laboratorio.nombreLaboratorio : ''}"></td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn" type="button"
+                          th:attr="data-id=${e.idEquipo},
+                                   data-codigo=${e.codigoEquipo},
+                                   data-tipo=${e.tipoEquipo},
+                                   data-marca=${e.marca},
+                                   data-modelo=${e.modelo},
+                                   data-estado=${e.estado},
+                                   data-labid=${e.laboratorio != null ? e.laboratorio.idLaboratorio : ''}"
+                          onclick="editarEquipo(this)"><i class="fas fa-edit"></i> Editar</button>
+
+                  <form th:action="@{'/dashboard/admin/activos/equipos/eliminar/' + ${e.idEquipo}}"
+                        method="post" onsubmit="return confirm('¿Eliminar equipo?');" style="display:inline">
+                    <button class="logout" type="submit" style="padding:10px 14px;border-radius:12px">
+                      <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                  </form>
+
+                  <button class="btn" type="button"
+                          th:attr="data-eq-id=${e.idEquipo},data-eq-codigo=${e.codigoEquipo}"
+                          onclick="abrirModalReporte(this)"><i class="fas fa-triangle-exclamation"></i> Reportar fallo</button>
+
+                  <button class="btn" type="button"
+                          th:attr="data-eq-id=${e.idEquipo},data-eq-codigo=${e.codigoEquipo}"
+                          onclick="verReportes(this)"><i class="fas fa-list"></i> Ver fallos</button>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(equipos)}">
+                <td colspan="7" style="padding:14px;color:#6b7280">No hay equipos para mostrar.</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== TAB MOBILIARIO ====== -->
+      <div th:if="${tab=='mobiliario'}">
+        <div class="grid">
+          <!-- Form Mobiliario -->
+          <div class="announcements-section" id="formMobiliarioBox">
+            <h3 id="mobFormTitle" style="margin-top:0">Nuevo Mobiliario</h3>
+            <p class="muted" id="mobFormHint">Rellena los datos y pulsa Guardar.</p>
+            <form id="mobiliarioFormEl" class="stack"
+                  th:object="${mobiliarioForm}"
+                  th:action="@{/dashboard/admin/activos/mobiliario/crear}"
+                  method="post">
+              <label>Tipo <input id="mob-tipo" th:field="*{tipoMobiliario}" required></label>
+              <label>Cantidad <input id="mob-cantidad" type="number" th:field="*{cantidad}" min="0" required></label>
+              <label>Estado
+                <select id="mob-estado" th:field="*{estado}">
+                  <option value="">(selecciona)</option>
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                </select>
+              </label>
+              <label>Laboratorio
+                <select id="mob-lab" th:field="*{laboratorio.idLaboratorio}">
+                  <option value="">(selecciona)</option>
+                  <option th:each="l: ${labs}" th:value="${l.idLaboratorio}" th:text="${l.nombreLaboratorio}"></option>
+                </select>
+              </label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" id="mobSubmitBtn" type="submit"><i class="fas fa-save"></i> Guardar</button>
+                <button class="logout" id="mobCancelBtn" type="button" style="display:none"><i class="fas fa-ban"></i> Cancelar edición</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tabla Mobiliario -->
+          <div class="announcements-section scroll-frame">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Cantidad</th>
+                  <th>Estado</th>
+                  <th>Laboratorio</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+              <tr th:each="m: ${mobiliarios}">
+                <td th:text="${m.tipoMobiliario}"></td>
+                <td th:text="${m.cantidad}"></td>
+                <td th:text="${m.estado}"></td>
+                <td th:text="${m.laboratorio != null ? m.laboratorio.nombreLaboratorio : ''}"></td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn" type="button"
+                          th:attr="data-id=${m.idMobiliario},
+                                   data-tipo=${m.tipoMobiliario},
+                                   data-cantidad=${m.cantidad},
+                                   data-estado=${m.estado},
+                                   data-labid=${m.laboratorio != null ? m.laboratorio.idLaboratorio : ''}"
+                          onclick="editarMobiliario(this)"><i class="fas fa-edit"></i> Editar</button>
+
+                  <form th:action="@{'/dashboard/admin/activos/mobiliario/eliminar/' + ${m.idMobiliario}}"
+                        method="post" onsubmit="return confirm('¿Eliminar mobiliario?');" style="display:inline">
+                    <button class="logout" type="submit" style="padding:10px 14px;border-radius:12px">
+                      <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(mobiliarios)}">
+                <td colspan="5" style="padding:14px;color:#6b7280">No hay mobiliario para mostrar.</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Modal Historial de fallos -->
+  <div id="modalHist" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+    <div class="modal" style="width:min(720px,94vw)">
+      <h3 id="histTitle">Historial de fallos</h3>
+      <p id="histEquipo" class="muted" style="margin:0 0 10px 0"></p>
+      <div id="histContenido" class="stack" style="max-height:60vh; overflow:auto; border:1px solid #e5e7eb; border-radius:12px; padding:10px"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button type="button" class="btn" onclick="cerrarHist()"><i class="fas fa-check"></i> Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal Reporte de fallo ===== -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reporteTitle">
+    <div class="modal">
+      <h3 id="reporteTitle">Reporte de fallo</h3>
+      <p id="modalEquipo" class="muted" style="margin:0 0 10px 0"></p>
+      <form id="reporteForm"
+            th:action="@{'/dashboard/admin/activos/equipos/0/reportes'}"
+            method="post" th:object="${reporteFalloForm}" class="stack">
+        <input type="hidden" id="rf-idEquipo" name="idEquipo" th:field="*{idEquipo}">
+        <label>Descripción del fallo
+          <textarea id="rf-descripcion" name="descripcionFallo" th:field="*{descripcionFallo}" rows="4" required></textarea>
+        </label>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button type="button" class="logout" onclick="cerrarModal()" style="padding:10px 14px;border-radius:12px"><i class="fas fa-ban"></i> Cancelar</button>
+          <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sesión -> UI -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <!-- Toast helper -->
+  <script>
+    function showToast(msg, type='ok'){
+      const t = document.getElementById('toast');
+      const m = document.getElementById('toastMsg');
+      const i = document.getElementById('toastIcon');
+      if(!t || !m || !i) return;
+      m.textContent = msg || '';
+      if(type==='ok'){
+        t.style.borderColor = '#86efac';
+        t.style.boxShadow = '0 10px 30px rgba(22,163,74,.25)';
+        t.style.color = '#166534';
+        i.innerHTML = '✅';
+      }else{
+        t.style.borderColor = '#fecaca';
+        t.style.boxShadow = '0 10px 30px rgba(220,38,38,.20)';
+        t.style.color = '#7f1d1d';
+        i.innerHTML = '⚠️';
+      }
+      t.style.display = 'block';
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(()=>{ t.style.display='none'; }, 3800);
+    }
+    (function(){
+      const okEl = document.getElementById('flashOk');
+      const erEl = document.getElementById('flashError');
+      if(okEl) showToast(okEl.textContent.trim(), 'ok');
+      if(erEl) showToast(erEl.textContent.trim(), 'error');
+    })();
+  </script>
+
+  <!-- Lógica de página -->
+  <script>
+    // ===== Header/Sidebar comunes =====
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); location.href='/login'; });
+
+    // Autorización mínima
+    (function(){
+      const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+      if(rol!=='administrador'&&rol!=='admin'){ alert('Acceso no autorizado'); location.href='/login'; }
+    })();
+
+    // ===== Modal reporte =====
+    const backdrop = document.getElementById('modalBackdrop');
+    const formReporte = document.getElementById('reporteForm');
+    const lblEquipo = document.getElementById('modalEquipo');
+    const hidId = document.getElementById('rf-idEquipo');
+
+    function abrirModalReporte(btn){
+      const id = btn.getAttribute('data-eq-id');
+      const code = btn.getAttribute('data-eq-codigo');
+      lblEquipo.textContent = "Equipo: " + code + " (ID " + id + ")";
+      hidId.value = id;
+      formReporte.setAttribute('action', '/dashboard/admin/activos/equipos/'+id+'/reportes');
+      backdrop.classList.add('open');
+    }
+    function cerrarModal(){ backdrop.classList.remove('open'); }
+    window.abrirModalReporte = abrirModalReporte;
+    window.cerrarModal = cerrarModal;
+    backdrop?.addEventListener('click', (e)=>{ if(e.target===backdrop) cerrarModal(); });
+    formReporte?.addEventListener('submit', ()=>{ backdrop.classList.remove('open'); });
+
+    // ===== Historial de reportes =====
+    const histBackdrop = document.getElementById('modalHist');
+    const histEquipo   = document.getElementById('histEquipo');
+    const histCont     = document.getElementById('histContenido');
+
+    async function verReportes(btn){
+      const id   = btn.getAttribute('data-eq-id');
+      const code = btn.getAttribute('data-eq-codigo');
+      histEquipo.textContent = "Equipo: " + code + " (ID " + id + ")";
+      histCont.innerHTML = '<div class="muted">Cargando...</div>';
+      try{
+        const res = await fetch(`/dashboard/admin/activos/equipos/${id}/reportes.json`, {credentials:'same-origin'});
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if(!data || data.length === 0){
+          histCont.innerHTML = '<div class="muted">Sin reportes para este equipo.</div>';
+        }else{
+          histCont.innerHTML = data.map(r => `
+            <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+                <strong>#${r.id ?? ''}</strong>
+                <span class="muted">${r.fechaReporte ?? ''}</span>
+              </div>
+              <div style="margin:6px 0">${escapeHtml(r.descripcionFallo || '')}</div>
+              <span class="muted">Estado: ${r.estadoReporte || '—'}</span>
+            </div>
+          `).join('');
+        }
+      }catch(e){
+        histCont.innerHTML = '<div class="muted">No fue posible cargar el historial.</div>';
+      }
+      histBackdrop.classList.add('open');
+    }
+    function cerrarHist(){ histBackdrop.classList.remove('open'); }
+    histBackdrop?.addEventListener('click', (e)=>{ if(e.target===histBackdrop) cerrarHist(); });
+
+    function escapeHtml(s){
+      return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    // ===== Edición Equipos =====
+    const eqForm = document.getElementById('equipoFormEl');
+    const eqFormBox = document.getElementById('formEquipoBox');
+    const eqTitle = document.getElementById('eqFormTitle');
+    const eqHint = document.getElementById('eqFormHint');
+    const eqSubmitBtn = document.getElementById('eqSubmitBtn');
+    const eqCancelBtn = document.getElementById('eqCancelBtn');
+
+    function resetEquipoForm(){
+      eqForm.setAttribute('action', '/dashboard/admin/activos/equipos/crear');
+      eqTitle.textContent = 'Nuevo Equipo';
+      eqHint.textContent = 'Rellena los datos y pulsa Guardar.';
+      eqSubmitBtn.textContent = 'Guardar';
+      eqCancelBtn.style.display = 'none';
+      eqFormBox.classList.remove('form-editing');
+      document.getElementById('eq-codigo').value = '';
+      document.getElementById('eq-tipo').value   = '';
+      document.getElementById('eq-marca').value  = '';
+      document.getElementById('eq-modelo').value = '';
+      document.getElementById('eq-estado').value = '';
+      document.getElementById('eq-lab').value    = '';
+    }
+    eqCancelBtn?.addEventListener('click', resetEquipoForm);
+
+    function editarEquipo(btn){
+      const id = btn.getAttribute('data-id');
+      eqForm.setAttribute('action', '/dashboard/admin/activos/equipos/editar/'+id);
+      eqTitle.textContent = 'Editar Equipo';
+      eqHint.textContent = 'Editando ID ' + id + '. Guarda para aplicar los cambios.';
+      eqSubmitBtn.textContent = 'Actualizar';
+      eqCancelBtn.style.display = 'inline-block';
+      eqFormBox.classList.add('form-editing');
+
+      document.getElementById('eq-codigo').value = btn.getAttribute('data-codigo') || '';
+      document.getElementById('eq-tipo').value   = btn.getAttribute('data-tipo') || '';
+      document.getElementById('eq-marca').value  = btn.getAttribute('data-marca') || '';
+      document.getElementById('eq-modelo').value = btn.getAttribute('data-modelo') || '';
+      document.getElementById('eq-estado').value = btn.getAttribute('data-estado') || '';
+      document.getElementById('eq-lab').value    = btn.getAttribute('data-labid') || '';
+    }
+    window.editarEquipo = editarEquipo;
+
+    // ===== Edición Mobiliario =====
+    const mobForm = document.getElementById('mobiliarioFormEl');
+    const mobFormBox = document.getElementById('formMobiliarioBox');
+    const mobTitle = document.getElementById('mobFormTitle');
+    const mobHint = document.getElementById('mobFormHint');
+    const mobSubmitBtn = document.getElementById('mobSubmitBtn');
+    const mobCancelBtn = document.getElementById('mobCancelBtn');
+
+    function resetMobiliarioForm(){
+      mobForm.setAttribute('action', '/dashboard/admin/activos/mobiliario/crear');
+      mobTitle.textContent = 'Nuevo Mobiliario';
+      mobHint.textContent = 'Rellena los datos y pulsa Guardar.';
+      mobSubmitBtn.textContent = 'Guardar';
+      mobCancelBtn.style.display = 'none';
+      mobFormBox.classList.remove('form-editing');
+
+      document.getElementById('mob-tipo').value      = '';
+      document.getElementById('mob-cantidad').value  = '';
+      document.getElementById('mob-estado').value    = '';
+      document.getElementById('mob-lab').value       = '';
+    }
+    mobCancelBtn?.addEventListener('click', resetMobiliarioForm);
+
+    function editarMobiliario(btn){
+      const id = btn.getAttribute('data-id');
+      mobForm.setAttribute('action', '/dashboard/admin/activos/mobiliario/editar/'+id);
+      mobTitle.textContent = 'Editar Mobiliario';
+      mobHint.textContent = 'Editando ID ' + id + '. Guarda para aplicar los cambios.';
+      mobSubmitBtn.textContent = 'Actualizar';
+      mobCancelBtn.style.display = 'inline-block';
+      mobFormBox.classList.add('form-editing');
+
+      document.getElementById('mob-tipo').value     = btn.getAttribute('data-tipo') || '';
+      document.getElementById('mob-cantidad').value = btn.getAttribute('data-cantidad') || '';
+      document.getElementById('mob-estado').value   = btn.getAttribute('data-estado') || '';
+      document.getElementById('mob-lab').value      = btn.getAttribute('data-labid') || '';
+    }
+    window.editarMobiliario = editarMobiliario;
+
+    // Responsive inicial
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+  </script>
+</body>
+</html>

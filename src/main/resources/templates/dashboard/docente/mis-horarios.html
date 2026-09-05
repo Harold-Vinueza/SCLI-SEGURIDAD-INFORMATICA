@@ -1,0 +1,176 @@
+<!-- src/main/resources/templates/dashboard/docente/mis-horarios.html -->
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mis Horarios - SGIL</title>
+
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css" />
+
+  <style>
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .toolbar h2{font-size:1rem;color:var(--text-muted);font-weight:600}
+    .table-theme{width:100%;border-collapse:collapse}
+    .table-theme th,.table-theme td{border-bottom:1px solid var(--border-light);padding:12px 10px;vertical-align:top;text-align:left}
+    .table-theme thead th{background:#F9FAF7;color:#334155;font-weight:600}
+    .slot{white-space:nowrap;font-weight:700;color:var(--primary-green)}
+    .ok{background:#ECFDF5}
+    .materia{font-weight:700}
+    .lab,.jor{font-size:.9rem;color:var(--text-muted)}
+    .btn{padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;background:#b61212;display:inline-flex;gap:6px;align-items:center}
+    .btn:hover{background:#1178e0}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/docente}"><i class="fas fa-home"></i> Inicio</a>
+      
+      <a class="nav-item active" th:href="@{/docente/horarios}"><i class="fas fa-calendar-alt"></i> Mis Horarios</a>
+      
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button"
+              onclick="alert('Desde aquí puedes consultar tus horarios y generar un PDF.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">DC</div>
+          <span id="userName">Docente</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-calendar-alt"></i> Mis Horarios</h1>
+
+      <div class="announcements-section" style="margin-bottom:16px">
+        <div class="toolbar">
+          <h2 th:text="${'Período: ' + tabla.periodo()}">Período</h2>
+          <a class="btn"
+             th:href="@{/docente/horarios/pdf(idDocente=${idDocente}, idPeriodo=${idPeriodo})}"
+             target="_blank">
+            <i class="fas fa-print"></i> Imprimir PDF
+          </a>
+        </div>
+      </div>
+
+      <div class="announcements-section" style="padding:0">
+        <div style="overflow:auto">
+          <table class="table-theme">
+            <thead>
+              <tr>
+                <th>Franja</th>
+                <th th:each="d : ${dias}" th:text="${d}">Día</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="fila : ${tabla.filas()}">
+                <td class="slot"
+                    th:text="|${#temporals.format(fila.inicio(),'HH:mm')} - ${#temporals.format(fila.fin(),'HH:mm')}|">
+                  07:00 - 08:00
+                </td>
+
+                <!-- Usa map.get(d) en lugar de (fila.celdas())[d] -->
+                <td th:each="d : ${dias}"
+                    th:with="c=${fila.celdas().get(d)}"
+                    th:classappend="${c != null and c.ocupado()} ? ' ok'">
+                  <div class="materia" th:text="${c != null} ? ${c.texto()}       : ''">Materia</div>
+                  <div class="lab"     th:text="${c != null} ? ${c.laboratorio()} : ''">LAB-01 (Lab Redes)</div>
+                  <div class="jor"     th:text="${c != null} ? ${c.jornada()}     : ''">Matutina</div>
+                </td>
+              </tr>
+
+              <!-- Mensaje por si no hay filas -->
+              <tr th:if="${#lists.isEmpty(tabla.filas())}">
+                <td colspan="6">No hay horarios registrados para este período.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'DC';
+
+    menuToggle?.addEventListener('click', ()=>{
+      sidebar.classList.toggle('hidden');
+      mainContent.classList.toggle('expanded');
+    });
+
+    userInfo?.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      userDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e)=>{
+      if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)){
+        userDropdown.classList.remove('show');
+      }
+    });
+
+    (function(){
+      const n = sessionStorage.getItem('nombreUsuario') || 'Docente';
+      userName.textContent = n;
+      userAvatar.textContent = ini(n);
+    })();
+
+    logoutBtn?.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}
+      sessionStorage.clear();
+      location.href='/login';
+    });
+
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+  </script>
+</body>
+</html>

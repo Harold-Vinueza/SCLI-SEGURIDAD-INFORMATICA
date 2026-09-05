@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Gestión de Laboratorios</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global con rompe-caché + fallback -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* Tabs look */
+    .tabs{display:flex;gap:8px;margin:4px 0 14px;flex-wrap:wrap}
+    .tabs .btn{padding:10px 16px}
+    .tabs .btn.is-active{box-shadow:0 4px 15px rgba(91,183,91,.35)}
+
+    /* Tabla dentro de tarjetas del tema */
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:12px 10px;border-bottom:1px solid var(--border-light);text-align:left}
+    .table thead th{background:#F9FAF7;color:#334155;font-weight:600}
+
+    /* Modales (consistentes con otras pantallas) */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1050}
+    .modal-backdrop.open{display:flex}
+    .modal{background:#fff;width:min(820px,94vw);border-radius:14px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .modal h3{margin:6px 4px 14px;color:#0f5132}
+    .modal input,.modal select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,.12)}
+  </style>
+</head>
+
+<body>
+
+  <!-- ===== Sidebar (tema global) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+    
+      <a th:href="@{/dashboard/admin/activos}" class="nav-item"><i class="fas fa-laptop"></i> Activos</a>
+      <a th:href="@{/dashboard/admin/auditorias}" class="nav-item"><i class="fas fa-search"></i> Auditorías</a>
+      <a th:href="@{/dashboard/admin/laboratorios}" class="nav-item active"><i class="fas fa-building"></i> Laboratorios</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="showHelp()"><i class="fas fa-question-circle"></i> Ayuda</button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <!-- Header (tema global) -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-building"></i> Gestión de Laboratorios</h1>
+
+      <!-- ===== Tabs ===== -->
+      <div class="tabs">
+        <button id="tabLabsBtn" class="btn is-active" type="button"><i class="fas fa-flask"></i> Laboratorios</button>
+        <button id="tabPisosBtn" class="btn" type="button"><i class="fas fa-layer-group"></i> Pisos</button>
+      </div>
+
+      <!-- ====== LABORATORIOS ====== -->
+      <div id="tabLabs" style="display:block">
+        <!-- Toolbar -->
+        <div class="announcements-section" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn" type="button" id="btnNuevoLab"><i class="fas fa-plus"></i> Nuevo laboratorio</button>
+
+          <form th:action="@{/dashboard/admin/laboratorios}" method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <input type="search" name="q" th:value="${query}" placeholder="Buscar por nombre..." style="padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;width:min(280px,44vw)">
+            <button class="btn" type="submit"><i class="fas fa-search"></i> Buscar</button>
+          </form>
+        </div>
+
+        <!-- Tabla -->
+        <div class="announcements-section" style="padding:0">
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Capacidad</th>
+                  <th>Estado</th>
+                  <th>Piso</th>
+                  <th style="text-align:right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="lab : ${labsPage}">
+                  <td th:text="${lab.codLaboratorio}">LAB-XX</td>
+                  <td th:text="${lab.nombreLaboratorio}">Laboratorio</td>
+                  <td th:text="${lab.capacidad}">30</td>
+                  <td th:text="${lab.estado}">Disponible</td>
+                  <td th:text="${lab.piso != null ? lab.piso.numeroPiso : '—'}">1</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <button class="btn"
+                            type="button"
+                            th:attr="data-id=${lab.idLaboratorio},
+                                     data-cod=${lab.codLaboratorio},
+                                     data-nom=${lab.nombreLaboratorio},
+                                     data-cap=${lab.capacidad},
+                                     data-est=${lab.estado},
+                                     data-piso=${lab.piso != null ? lab.piso.idPiso : 0}"
+                            onclick="openEditLab(this)">
+                      <i class="fas fa-edit"></i> Editar
+                    </button>
+
+                    <form th:action="@{|/admin/laboratorios/${lab.idLaboratorio}|}" method="post" style="display:inline">
+                      <input type="hidden" name="_method" value="DELETE"/>
+                      <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                      <button class="btn btn-danger" type="submit"
+                              onclick="return confirm('¿Eliminar laboratorio?')">
+                        <i class="fas fa-trash"></i> Eliminar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(labsPage)}">
+                  <td colspan="6" style="padding:16px;color:var(--text-muted)">Sin resultados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Paginación -->
+          <div style="display:flex;gap:8px;justify-content:flex-end;padding:12px">
+            <a class="btn" th:if="${labsPage.hasPrevious()}"
+               th:href="@{|/dashboard/admin/laboratorios?page=${labsPage.number-1}&q=${query}|}"><i class="fas fa-arrow-left"></i> Anterior</a>
+            <span style="align-self:center;color:var(--text-muted)">
+              Página <span th:text="${labsPage.number+1}">1</span> de <span th:text="${labsPage.totalPages}">1</span>
+            </span>
+            <a class="btn" th:if="${labsPage.hasNext()}"
+               th:href="@{|/dashboard/admin/laboratorios?page=${labsPage.number+1}&q=${query}|}">Siguiente <i class="fas fa-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== PISOS ====== -->
+      <div id="tabPisos" style="display:none">
+        <!-- Toolbar -->
+        <div class="announcements-section" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn" type="button" id="btnNuevoPiso"><i class="fas fa-plus"></i> Nuevo piso</button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="announcements-section" style="padding:0">
+          <div style="overflow:auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th># Piso</th>
+                  <th>Descripción</th>
+                  <th style="text-align:right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="p : ${pisos}">
+                  <td th:text="${p.numeroPiso}">1</td>
+                  <td th:text="${p.descripcion}">Planta baja</td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <button class="btn"
+                            type="button"
+                            th:attr="data-id=${p.idPiso},data-num=${p.numeroPiso},data-des=${p.descripcion}"
+                            onclick="openEditPiso(this)">
+                      <i class="fas fa-edit"></i> Editar
+                    </button>
+
+                    <form th:action="@{|/admin/pisos/${p.idPiso}|}" method="post" style="display:inline">
+                      <input type="hidden" name="_method" value="DELETE"/>
+                      <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                      <button class="btn btn-danger" type="submit"
+                              onclick="return confirm('¿Eliminar piso?')">
+                        <i class="fas fa-trash"></i> Eliminar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(pisos)}">
+                  <td colspan="3" style="padding:16px;color:var(--text-muted)">No hay pisos registrados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ===================== MODALES ===================== -->
+
+  <!-- Crear/Editar LABORATORIO -->
+  <div id="modalLab" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="labTitle">
+    <div class="modal">
+      <h3 id="labTitle">Laboratorio</h3>
+      <form id="labForm" th:action="@{/admin/laboratorios}" method="post" style="display:grid;gap:10px">
+        <input type="hidden" name="_method" id="labMethod" value="POST"/>
+        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="idLaboratorio" id="labId"/>
+
+        <div style="display:grid;gap:6px">
+          <label>Código</label>
+          <input name="codLaboratorio" id="labCod" type="text" placeholder="LAB-XX"/>
+        </div>
+
+        <div style="display:grid;gap:6px">
+          <label>Nombre</label>
+          <input name="nombreLaboratorio" id="labNom" type="text" required/>
+        </div>
+
+        <div style="display:grid;gap:6px">
+          <label>Capacidad</label>
+          <input name="capacidad" id="labCap" type="number" min="0" required/>
+        </div>
+
+        <div style="display:grid;gap:6px">
+          <label>Estado</label>
+          <select name="estado" id="labEst" required>
+            <option value="Disponible">Disponible</option>
+            <option value="En mantenimiento">En mantenimiento</option>
+            <option value="Cerrado">Cerrado</option>
+          </select>
+        </div>
+
+        <div style="display:grid;gap:6px">
+          <label>Piso</label>
+          <select name="piso.idPiso" id="labPiso">
+            <option value="" disabled selected>Seleccione…</option>
+            <option th:each="p : ${pisos}" th:value="${p.idPiso}"
+                    th:text="${'Piso ' + p.numeroPiso + (p.descripcion != null ? ' - ' + p.descripcion : '')}">Piso</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn" onclick="closeLab()">Cancelar</button>
+          <button type="submit" class="btn" id="labSubmitBtn"><i class="fas fa-save"></i> Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Crear/Editar PISO -->
+  <div id="modalPiso" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pisoTitle">
+    <div class="modal">
+      <h3 id="pisoTitle">Piso</h3>
+      <form id="pisoForm" th:action="@{/admin/pisos}" method="post" style="display:grid;gap:10px">
+        <input type="hidden" name="_method" id="pisoMethod" value="POST"/>
+        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="idPiso" id="pisoId"/>
+
+        <div style="display:grid;gap:6px">
+          <label>Número de piso</label>
+          <input name="numeroPiso" id="pisoNum" type="number" min="0" required/>
+        </div>
+
+        <div style="display:grid;gap:6px">
+          <label>Descripción</label>
+          <input name="descripcion" id="pisoDesc" type="text"/>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn" onclick="closePiso()">Cancelar</button>
+          <button type="submit" class="btn" id="pisoSubmitBtn"><i class="fas fa-save"></i> Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== Estado/rol + navegación ====== -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+    // UI comunes (tema global)
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); location.href='/login'; });
+
+    function showHelp(){ alert('Gestión de Laboratorios\n\nCree, edite o elimine laboratorios y pisos. Use las pestañas para cambiar de vista.'); }
+    window.showHelp = showHelp;
+
+    // Tabs
+    const tabLabs=document.getElementById('tabLabs'), tabPisos=document.getElementById('tabPisos');
+    const tabLabsBtn=document.getElementById('tabLabsBtn'), tabPisosBtn=document.getElementById('tabPisosBtn');
+    tabLabsBtn.onclick=()=>{ tabLabs.style.display='block'; tabPisos.style.display='none'; tabLabsBtn.classList.add('is-active'); tabPisosBtn.classList.remove('is-active'); };
+    tabPisosBtn.onclick=()=>{ tabLabs.style.display='none'; tabPisos.style.display='block'; tabPisosBtn.classList.add('is-active'); tabLabsBtn.classList.remove('is-active'); };
+
+    // ====== Modales LAB ======
+    const modalLab=document.getElementById('modalLab');
+    const labForm=document.getElementById('labForm');
+    const labMethod=document.getElementById('labMethod');
+    const labId=document.getElementById('labId');
+    const labCod=document.getElementById('labCod');
+    const labNom=document.getElementById('labNom');
+    const labCap=document.getElementById('labCap');
+    const labEst=document.getElementById('labEst');
+    const labPiso=document.getElementById('labPiso');
+    const labTitle=document.getElementById('labTitle');
+
+    document.getElementById('btnNuevoLab').onclick=()=>{
+      labTitle.textContent='Nuevo laboratorio';
+      labForm.setAttribute('action','/admin/laboratorios');
+      labMethod.value='POST';
+      labId.value=''; labCod.value=''; labNom.value=''; labCap.value=''; labEst.value='Disponible'; labPiso.value='';
+      modalLab.classList.add('open');
+    };
+    function openEditLab(btn){
+      labTitle.textContent='Editar laboratorio';
+      const id=btn.dataset.id;
+      labForm.setAttribute('action','/admin/laboratorios/'+id);
+      labMethod.value='PUT';
+      labId.value=id;
+      labCod.value=btn.dataset.cod||'';
+      labNom.value=btn.dataset.nom||'';
+      labCap.value=btn.dataset.cap||'';
+      labEst.value=btn.dataset.est||'Disponible';
+      labPiso.value=btn.dataset.piso||'';
+      modalLab.classList.add('open');
+    }
+    function closeLab(){ modalLab.classList.remove('open'); }
+    window.openEditLab = openEditLab; window.closeLab = closeLab;
+
+    // ====== Modales PISO ======
+    const modalPiso=document.getElementById('modalPiso');
+    const pisoForm=document.getElementById('pisoForm');
+    const pisoMethod=document.getElementById('pisoMethod');
+    const pisoId=document.getElementById('pisoId');
+    const pisoNum=document.getElementById('pisoNum');
+    const pisoDesc=document.getElementById('pisoDesc');
+
+    document.getElementById('btnNuevoPiso').onclick=()=>{
+      pisoForm.setAttribute('action','/admin/pisos');
+      pisoMethod.value='POST';
+      pisoId.value=''; pisoNum.value=''; pisoDesc.value='';
+      modalPiso.classList.add('open');
+    };
+    function openEditPiso(btn){
+      const id=btn.dataset.id;
+      pisoForm.setAttribute('action','/admin/pisos/'+id);
+      pisoMethod.value='PUT';
+      pisoId.value=id;
+      pisoNum.value=btn.dataset.num||'';
+      pisoDesc.value=btn.dataset.des||'';
+      modalPiso.classList.add('open');
+    }
+    function closePiso(){ modalPiso.classList.remove('open'); }
+    window.openEditPiso = openEditPiso; window.closePiso = closePiso;
+
+    // Responsive inicial
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+  </script>
+</body>
+</html>

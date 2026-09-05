@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Equipos (Vue)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    th { cursor: pointer; }
+    .active-col { text-decoration: underline; }
+    /* modal simple controlado por Vue (sin JS de Bootstrap) */
+    .v-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; }
+    .v-modal { background: #fff; width: 100%; max-width: 640px; border-radius: .5rem; box-shadow: 0 1rem 3rem rgba(0,0,0,.175); }
+  </style>
+</head>
+<body class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Equipos (Vista con Vue)</h1>
+    <a th:href="@{/dashboard/admin/equipos}" class="btn btn-outline-secondary">Volver a Thymeleaf</a>
+  </div>
+
+  <div id="app">
+    <!-- Barra acciones -->
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-success" @click="abrirNuevo">+ Nuevo equipo</button>
+      <div class="ms-auto d-flex gap-2">
+        <input class="form-control" v-model="q" placeholder="Buscar (código, tipo, marca, modelo)" />
+        <input class="form-control" v-model="estado" placeholder="Estado (opcional)" />
+        <input class="form-control" v-model.number="labId" placeholder="ID de laboratorio (opcional)" />
+        <button class="btn btn-primary" @click="cargar">Buscar</button>
+      </div>
+    </div>
+
+    <p v-if="cargando">Cargando...</p>
+    <p v-if="error" class="text-danger">{{ error }}</p>
+    <p v-if="flash" class="text-success">{{ flash }}</p>
+
+    <div v-if="!cargando">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-muted">Total: {{ totalFiltrados }}</small>
+        <div>
+          <label class="me-2">Orden:</label>
+          <select v-model="orden" class="form-select d-inline-block w-auto">
+            <option value="codigoEquipo">Código</option>
+            <option value="tipoEquipo">Tipo</option>
+            <option value="marca">Marca</option>
+            <option value="modelo">Modelo</option>
+            <option value="estado">Estado</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-striped align-middle">
+          <thead>
+            <tr>
+              <th :class="{'active-col': orden==='codigoEquipo'}" @click="orden='codigoEquipo'">Código</th>
+              <th :class="{'active-col': orden==='tipoEquipo'}"   @click="orden='tipoEquipo'">Tipo</th>
+              <th :class="{'active-col': orden==='marca'}"       @click="orden='marca'">Marca</th>
+              <th :class="{'active-col': orden==='modelo'}"      @click="orden='modelo'">Modelo</th>
+              <th :class="{'active-col': orden==='estado'}"      @click="orden='estado'">Estado</th>
+              <th class="text-center" style="width:160px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="e in paginaActual" :key="e.idEquipo">
+              <td>{{ e.codigoEquipo }}</td>
+              <td>{{ e.tipoEquipo }}</td>
+              <td>{{ e.marca }}</td>
+              <td>{{ e.modelo }}</td>
+              <td>{{ e.estado }}</td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary me-1" @click="abrirEditar(e)">Editar</button>
+                <button class="btn btn-sm btn-outline-danger" @click="eliminar(e.idEquipo)">Eliminar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginación -->
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <label class="me-2">Por página:</label>
+          <select v-model.number="pageSize" class="form-select d-inline-block w-auto">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+          </select>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-outline-secondary" :disabled="page===1" @click="page--">«</button>
+          <button class="btn btn-outline-secondary disabled">Página {{ page }} / {{ totalPages }}</button>
+          <button class="btn btn-outline-secondary" :disabled="page===totalPages" @click="page++">»</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Crear/Editar (controlado por Vue) -->
+    <div v-if="showModal" class="v-modal-backdrop">
+      <div class="v-modal p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0">{{ esNuevo ? 'Nuevo equipo' : 'Editar equipo' }}</h5>
+          <button class="btn btn-sm btn-outline-secondary" @click="cerrarModal">X</button>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">Código</label>
+            <input class="form-control" v-model.trim="form.codigoEquipo" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Tipo</label>
+            <input class="form-control" v-model.trim="form.tipoEquipo" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Marca</label>
+            <input class="form-control" v-model.trim="form.marca" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Modelo</label>
+            <input class="form-control" v-model.trim="form.modelo" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Estado</label>
+            <input class="form-control" v-model.trim="form.estado" placeholder="activo / inactivo ..." />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Laboratorio</label>
+            <select class="form-select" v-model.number="form.labId">
+              <option :value="null">-- sin asignar --</option>
+              <option v-for="l in labs" :key="l.idLaboratorio" :value="l.idLaboratorio">
+                {{ l.nombre }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" @click="cerrarModal">Cancelar</button>
+          <button class="btn btn-primary" :disabled="guardando" @click="guardar">
+            {{ guardando ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+
+        <p v-if="formError" class="text-danger mt-2">{{ formError }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vue -->
+  <script src="https://unpkg.com/vue@3"></script>
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+
+    createApp({
+      setup() {
+        // filtros/listado
+        const q = ref("");
+        const labId = ref(null);
+        const estado = ref("");
+        const orden = ref("codigoEquipo");
+        const equipos = ref([]);
+        const labs = ref([]);
+        const cargando = ref(false);
+        const error = ref("");
+        const flash = ref("");
+
+        // paginación
+        const page = ref(1);
+        const pageSize = ref(10);
+
+        // modal + form
+        const showModal = ref(false);
+        const esNuevo = ref(true);
+        const guardando = ref(false);
+        const formError = ref("");
+        const form = reactive({
+          idEquipo: null,
+          codigoEquipo: "",
+          tipoEquipo: "",
+          marca: "",
+          modelo: "",
+          estado: "",
+          labId: null
+        });
+
+        const cargar = async () => {
+          cargando.value = true; error.value=""; flash.value="";
+          try {
+            const params = new URLSearchParams();
+            if (q.value) params.append("q", q.value);
+            if (labId.value) params.append("labId", labId.value);
+            if (estado.value) params.append("estado", estado.value);
+            const r = await fetch(`/api/admin/equipos?${params.toString()}`);
+            if (!r.ok) throw new Error("No se pudo cargar la lista");
+            equipos.value = await r.json();
+            page.value = 1;
+          } catch (e) { error.value = e.message; }
+          finally { cargando.value = false; }
+        };
+
+        const cargarLabs = async () => {
+          try {
+            const r = await fetch("/api/admin/equipos/labs");
+            if (!r.ok) throw new Error("No se pudieron cargar laboratorios");
+            labs.value = await r.json();
+          } catch (e) { /* opcional mostrar error */ }
+        };
+
+        onMounted(() => { cargar(); cargarLabs(); });
+
+        // ordenar + paginar
+        const ordenados = computed(() => {
+          return equipos.value.slice().sort((a, b) => {
+            const A = ("" + (a[orden.value] ?? "")).toLowerCase();
+            const B = ("" + (b[orden.value] ?? "")).toLowerCase();
+            return A.localeCompare(B);
+          });
+        });
+        const totalFiltrados = computed(() => ordenados.value.length);
+        const totalPages = computed(() => Math.max(1, Math.ceil(ordenados.value.length / pageSize.value)));
+        watch([pageSize, ordenados], () => { page.value = 1; });
+        const paginaActual = computed(() => ordenados.value.slice((page.value-1)*pageSize.value, (page.value)*pageSize.value));
+
+        // CRUD
+        const abrirNuevo = () => {
+          esNuevo.value = true; formError.value = "";
+          Object.assign(form, { idEquipo:null, codigoEquipo:"", tipoEquipo:"", marca:"", modelo:"", estado:"", labId:null });
+          showModal.value = true;
+        };
+        const abrirEditar = (e) => {
+          esNuevo.value = false; formError.value = "";
+          Object.assign(form, {
+            idEquipo: e.idEquipo,
+            codigoEquipo: e.codigoEquipo,
+            tipoEquipo: e.tipoEquipo,
+            marca: e.marca,
+            modelo: e.modelo,
+            estado: e.estado,
+            labId: e.labId ?? null
+          });
+          showModal.value = true;
+        };
+        const cerrarModal = () => { showModal.value = false; };
+
+        const guardar = async () => {
+          formError.value = ""; guardando.value = true;
+          try {
+            const payload = {
+              codigoEquipo: form.codigoEquipo?.trim(),
+              tipoEquipo:   form.tipoEquipo?.trim(),
+              marca:        form.marca?.trim(),
+              modelo:       form.modelo?.trim(),
+              estado:       form.estado?.trim(),
+              labId:        form.labId ?? null
+            };
+            let r;
+            if (esNuevo.value) {
+              r = await fetch("/api/admin/equipos", {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify(payload)
+              });
+            } else {
+              r = await fetch(`/api/admin/equipos/${form.idEquipo}`, {
+                method: "PUT",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify(payload)
+              });
+            }
+            if (r.status === 409) {
+              const data = await r.json().catch(()=>({error:"Conflicto de datos"}));
+              throw new Error(data.error || "Conflicto de datos");
+            }
+            if (!r.ok) throw new Error("No se pudo guardar");
+            showModal.value = false;
+            await cargar();
+            flash.value = esNuevo.value ? "Equipo creado." : "Equipo actualizado.";
+          } catch (e) { formError.value = e.message; }
+          finally { guardando.value = false; }
+        };
+
+        const eliminar = async (id) => {
+          if (!confirm("¿Eliminar equipo?")) return;
+          try {
+            const r = await fetch(`/api/admin/equipos/${id}`, { method: "DELETE" });
+            if (!r.ok) throw new Error("No se pudo eliminar");
+            await cargar();
+            flash.value = "Equipo eliminado.";
+          } catch (e) { error.value = e.message; }
+        };
+
+        return {
+          // datos
+          q, labId, estado, orden, equipos, labs, cargando, error, flash,
+          // paginación/orden
+          page, pageSize, totalPages, totalFiltrados, paginaActual,
+          // modal/form
+          showModal, esNuevo, form, formError, guardando,
+          // métodos
+          cargar, abrirNuevo, abrirEditar, cerrarModal, guardar, eliminar
+        };
+      }
+    }).mount("#app");
+  </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Equipos - SGIL</title>
+  <link rel="stylesheet" th:href="@{/css/admin.css}"/>
+</head>
+<body>
+<div class="container">
+  <aside class="sidebar">
+    <div class="logo">
+      <img th:src="@{/labS.png}" alt="SGIL" onerror="this.style.display='none'"/>
+    </div>
+    <nav>
+      <a th:href="@{/dashboard/admin}">Inicio</a>
+      <a href="#">Perfil</a>
+      <a href="#">Ayuda</a>
+    </nav>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="menu-toggle" id="menuToggle">&#9776;</div>
+      <input type="text" class="search" placeholder="Buscar" value="" disabled>
+      <div class="user">
+        <span class="icon">&#128100;</span>
+        <span id="userName">Administrador</span>
+      </div>
+      <button class="logout" id="logoutBtn" type="button">Salir</button>
+    </header>
+
+    <section class="dashboard">
+      <h2>Gestión de Equipos</h2>
+
+      <!-- Filtros -->
+      <form class="anuncios" th:action="@{/dashboard/admin/equipos}" method="get" style="gap:8px;align-items:end;flex-wrap:wrap">
+        <div>
+          <label>Buscar</label>
+          <input name="q" type="text" th:value="${q}" placeholder="código / tipo / marca / modelo" style="padding:8px;border-radius:8px;border:1px solid #ddd;">
+        </div>
+        <div>
+          <label>Laboratorio</label>
+          <select name="labId" style="padding:8px;border-radius:8px;border:1px solid #ddd;min-width:200px">
+            <option value="" th:selected="${labId == null}">Todos</option>
+            <option th:each="l : ${labs}"
+                    th:value="${l.idLaboratorio}"
+                    th:text="${l.nombreLaboratorio}"
+                    th:selected="${labId != null and labId == l.idLaboratorio}">
+            </option>
+          </select>
+        </div>
+        <div>
+          <label>Estado</label>
+          <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #ddd;">
+            <option value="" th:selected="${estado == null or estado == ''}">Todos</option>
+            <option th:value="'activo'"        th:selected="${estado == 'activo'}">Activo</option>
+            <option th:value="'inactivo'"      th:selected="${estado == 'inactivo'}">Inactivo</option>
+            <option th:value="'mantenimiento'" th:selected="${estado == 'mantenimiento'}">Mantenimiento</option>
+          </select>
+        </div>
+        <button class="filtro-btn" type="submit">Filtrar</button>
+        <a class="btn" th:href="@{/dashboard/admin/equipos}">Limpiar</a>
+      </form>
+
+      <!-- Mensajes flash -->
+      <div th:if="${ok}" class="vista-anuncio" th:text="${ok}" style="color:#1B7505;"></div>
+      <div th:if="${error}" class="vista-anuncio" th:text="${error}" style="color:#E95F01;"></div>
+
+      <!-- Grid: Form + Tabla -->
+      <div style="display:grid;grid-template-columns: 320px 1fr;gap:16px;">
+        <!-- Formulario Crear/Editar -->
+        <div class="vista-anuncio">
+          <h3 style="margin-top:0" th:text="${editMode} ? 'Editar Equipo' : 'Nuevo Equipo'">Nuevo Equipo</h3>
+
+          <form th:object="${equipoForm}"
+                th:action="${editMode} ? @{'/dashboard/admin/equipos/editar/' + ${editId}} : @{/dashboard/admin/equipos/crear}"
+                method="post"
+                style="display:grid;gap:10px">
+
+            <!-- opcional: mantener id en edición -->
+            <input type="hidden" th:if="${editMode}" th:field="*{idEquipo}"/>
+
+            <label>Código
+              <input th:field="*{codigoEquipo}" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <small style="color:#E95F01" th:errors="*{codigoEquipo}"></small>
+            </label>
+
+            <label>Tipo
+              <input th:field="*{tipoEquipo}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <small style="color:#E95F01" th:errors="*{tipoEquipo}"></small>
+            </label>
+
+            <label>Marca
+              <input th:field="*{marca}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <small style="color:#E95F01" th:errors="*{marca}"></small>
+            </label>
+
+            <label>Modelo
+              <input th:field="*{modelo}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <small style="color:#E95F01" th:errors="*{modelo}"></small>
+            </label>
+
+            <label>Estado
+              <select th:field="*{estado}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+                <option value="">(selecciona)</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="mantenimiento">Mantenimiento</option>
+              </select>
+              <small style="color:#E95F01" th:errors="*{estado}"></small>
+            </label>
+
+            <!-- Vincular por id del laboratorio -->
+            <label>Laboratorio
+              <select th:field="*{laboratorio.idLaboratorio}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px">
+                <option value="">(selecciona)</option>
+                <option th:each="l: ${labs}"
+                        th:value="${l.idLaboratorio}"
+                        th:text="${l.nombreLaboratorio}">
+                </option>
+              </select>
+              <small style="color:#E95F01" th:errors="*{laboratorio.idLaboratorio}"></small>
+            </label>
+
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn" type="submit" th:text="${editMode} ? 'Actualizar' : 'Guardar'">Guardar</button>
+              <a class="logout" th:if="${editMode}" th:href="@{/dashboard/admin/equipos}" style="padding:8px 12px;border-radius:8px;display:inline-block;text-decoration:none;">Cancelar</a>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tabla -->
+        <div class="vista-anuncio" style="overflow:auto">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+            <tr style="text-align:left;background:#F9FAF7">
+              <th style="padding:10px;border-bottom:1px solid #eee;">Código</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Tipo</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Marca</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Modelo</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Estado</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Laboratorio</th>
+              <th style="padding:10px;border-bottom:1px solid #eee;">Acciones</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="e: ${equipos}">
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.codigoEquipo}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.tipoEquipo}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.marca}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.modelo}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.estado}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0" th:text="${e.laboratorio != null ? e.laboratorio.nombreLaboratorio : ''}"></td>
+              <td style="padding:10px;border-bottom:1px solid #f0f0f0">
+                <!-- Editar: ahora GET para precargar el form -->
+                <a class="btn" th:href="@{'/dashboard/admin/equipos/editar/' + ${e.idEquipo}}">Editar</a>
+
+                <form th:action="@{'/dashboard/admin/equipos/eliminar/' + ${e.idEquipo}}" method="post" style="display:inline-block" onsubmit="return confirm('¿Eliminar equipo?');">
+                  <button class="logout" type="submit" style="padding:8px 12px;border-radius:8px">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(equipos)}">
+              <td colspan="7" style="padding:14px;color:#777;">No hay equipos para mostrar.</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  const menuToggle=document.getElementById('menuToggle');
+  const sidebar=document.querySelector('.sidebar');
+  menuToggle?.addEventListener('click',()=>sidebar?.classList.toggle('oculto'));
+
+  document.getElementById('logoutBtn')?.addEventListener('click', async ()=>{
+    try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(e){}
+    sessionStorage.clear(); window.location.href='/login';
+  });
+</script>
+</body>
+</html>

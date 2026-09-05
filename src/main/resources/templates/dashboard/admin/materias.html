@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Materias</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global + rompe-caché -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* Controles compactos y secciones flex */
+    .stack{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .stack-right{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .search{padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+
+    /* Tab buttons look */
+    .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .tabs .btn{padding:10px 16px}
+    .tabs .btn.is-active{box-shadow:0 4px 15px rgba(91,183,91,.35)}
+
+    /* Tablas dentro de tarjetas del tema */
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:12px 10px;border-bottom:1px solid var(--border-light);text-align:left}
+    .table thead th{background:#F9FAF7;color:#334155;font-weight:600}
+
+    /* Modal genérico (coincide con resto de pantallas) */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1050}
+    .modal-backdrop.open{display:flex}
+    .modal{background:#fff;width:min(900px,94vw);border-radius:14px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .modal h3{margin:6px 4px 14px;color:#0f5132}
+    .modal .search, .modal select{width:100%}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (tema global) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+      <a th:href="@{/dashboard/admin/horarios}" class="nav-item"><i class="fas fa-calendar-alt"></i> Horarios</a>
+  
+      <a th:href="@{/dashboard/admin/materias}" class="nav-item active"><i class="fas fa-book"></i> Materias</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('En esta vista puedes crear/editar materias, carreras y facultades, además de asignar el docente responsable de cada materia.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <!-- Header (tema global) -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Usuario.Admin</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenido -->
+    <section class="dashboard" id="app">
+      <h1 class="page-title"><i class="fas fa-book"></i> Gestión de Materias</h1>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="btn is-active" data-tab="materias" type="button"><i class="fas fa-book"></i> Materia</button>
+        <button class="btn" data-tab="carreras" type="button"><i class="fas fa-graduation-cap"></i> Carrera</button>
+        <button class="btn" data-tab="facultades" type="button"><i class="fas fa-university"></i> Facultad</button>
+      </div>
+
+      <!-- ===== MATERIAS ===== -->
+      <div data-content="materias" style="display:block">
+        <div class="announcements-section">
+          Administra las asignaturas. Puedes crear, editar, eliminar y filtrar.
+        </div>
+
+        <div class="announcements-section">
+          <div class="stack">
+            <select id="m-filtro-fac" class="search" style="max-width:240px">
+              <option value="">— Todas las facultades —</option>
+            </select>
+            <select id="m-filtro-car" class="search" style="max-width:240px">
+              <option value="">— Todas las carreras —</option>
+            </select>
+            <input id="m-search" class="search" type="text" placeholder="Buscar por código o nombre…">
+            <div class="stack-right" style="margin-left:auto">
+              <button class="btn" type="button" id="m-add"><i class="fas fa-plus"></i> Nueva Materia</button>
+              <button class="btn" type="button" id="m-ref"><i class="fas fa-rotate"></i> Refrescar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="announcements-section" id="m-table" style="padding:0"></div>
+      </div>
+
+      <!-- ===== CARRERAS ===== -->
+      <div data-content="carreras" style="display:none">
+        <div class="announcements-section">Administra las carreras. Cada carrera pertenece a una facultad.</div>
+
+        <div class="announcements-section">
+          <div class="stack">
+            <select id="c-filtro-fac" class="search" style="max-width:240px">
+              <option value="">— Todas las facultades —</option>
+            </select>
+            <input id="c-search" class="search" type="text" placeholder="Buscar por nombre…">
+            <div class="stack-right" style="margin-left:auto">
+              <button class="btn" type="button" id="c-add"><i class="fas fa-plus"></i> Nueva Carrera</button>
+              <button class="btn" type="button" id="c-ref"><i class="fas fa-rotate"></i> Refrescar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="announcements-section" id="c-table" style="padding:0"></div>
+      </div>
+
+      <!-- ===== FACULTADES ===== -->
+      <div data-content="facultades" style="display:none">
+        <div class="announcements-section">Administra las facultades.</div>
+
+        <div class="announcements-section">
+          <div class="stack">
+            <input id="f-search" class="search" type="text" placeholder="Buscar por nombre…">
+            <div class="stack-right" style="margin-left:auto">
+              <button class="btn" type="button" id="f-add"><i class="fas fa-plus"></i> Nueva Facultad</button>
+              <button class="btn" type="button" id="f-ref"><i class="fas fa-rotate"></i> Refrescar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="announcements-section" id="f-table" style="padding:0"></div>
+      </div>
+
+      <!-- ===== Modal genérico ===== -->
+      <div class="modal-backdrop" id="modalBackdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+          <h3 id="modalTitle">Formulario</h3>
+          <form id="modalForm">
+            <input type="hidden" id="form-entity">
+            <input type="hidden" id="form-id">
+
+            <!-- Materia -->
+            <div id="form-m" style="display:none">
+              <div class="stack" style="gap:10px">
+                <input class="search" type="text" id="m-cod" placeholder="Código" maxlength="50" required>
+                <input class="search" type="text" id="m-nom" placeholder="Nombre" maxlength="255" required>
+                <input class="search" type="text" id="m-sem" placeholder="Semestre" maxlength="50">
+                <select id="m-fac" class="search" required>
+                  <option value="">— Facultad —</option>
+                </select>
+                <select id="m-car" class="search" required>
+                  <option value="">— Carrera —</option>
+                </select>
+                <!-- Docente a cargo -->
+                <select id="m-doc" class="search" required>
+                  <option value="">— Docente a cargo —</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Carrera -->
+            <div id="form-c" style="display:none">
+              <div class="stack" style="gap:10px">
+                <input class="search" type="text" id="c-nom" placeholder="Nombre carrera" maxlength="100" required>
+                <select id="c-fac" class="search" required>
+                  <option value="">— Facultad —</option>
+                </select>
+                <input class="search" type="number" id="c-idper" placeholder="Id coordinador (opcional)">
+              </div>
+            </div>
+
+            <!-- Facultad -->
+            <div id="form-f" style="display:none">
+              <div class="stack" style="gap:10px">
+                <input class="search" type="text" id="f-nom" placeholder="Nombre facultad" maxlength="100" required>
+              </div>
+            </div>
+
+            <div class="stack-right" style="margin-top:10px">
+              <button type="button" class="btn" id="btnCancel">Cancelar</button>
+              <button type="submit" class="btn" id="btnSave"><i class="fas fa-save"></i> Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sesión a UI -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <!-- Lógica -->
+  <script>
+    // ===== Header/Sidebar comunes =====
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Administrador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){} sessionStorage.clear(); location.href='/login'; });
+
+    // ===== util =====
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const API = {
+      materias:'/api/materias',
+      carreras:'/api/carreras',
+      facultades:'/api/facultades',
+      docentesSel:'/api/docentes/select'
+    };
+
+    async function send(url, {method='GET', body=null}={}) {
+      const opts = { method, headers:{'Accept':'application/json'}, credentials:'same-origin' };
+      if (body!==null) { opts.headers['Content-Type']='application/json'; opts.body = JSON.stringify(body); }
+      const r = await fetch(url, opts);
+      if (!r.ok) {
+        let msg=''; try { const j = await r.json(); msg = j.error || JSON.stringify(j); } catch { msg = await r.text(); }
+        alert(`Error ${r.status}: ${msg||r.statusText}`); throw new Error(msg||r.statusText);
+      }
+      if (r.status === 204) return null;
+      try { return await r.json(); } catch { return null; }
+    }
+
+    // ===== estado =====
+    const state = {
+      m: { page:0, size:10, total:0 },
+      c: { page:0, size:10, total:0 },
+      f: { page:0, size:10, total:0 }
+    };
+
+    function pagerHTML(key){
+      const st = state[key]; const from = st.total===0 ? 0 : st.page*st.size+1; const to = Math.min((st.page+1)*st.size, st.total);
+      return `<div class="announcements-section" style="display:flex;justify-content:space-between;align-items:center">
+        <div>Mostrando ${from}–${to} de ${st.total}</div>
+        <div class="stack">
+          <button class="btn" data-prev="${key}" ${st.page<=0?'disabled':''}>Anterior</button>
+          <button class="btn" data-next="${key}" ${(st.page+1)*st.size>=st.total?'disabled':''}>Siguiente</button>
+        </div></div>`;
+    }
+
+    async function fetchPage(url, params){
+      const qs = new URLSearchParams(params); return await send(`${url}?${qs.toString()}`);
+    }
+
+    // ===== combos =====
+    async function cargarFacultades(){
+      const page = await send(`${API.facultades}?page=0&size=999`);
+      const list = page?.content||[];
+      const optAll = ['<option value="">— Todas las facultades —</option>']
+        .concat(list.map(f=>`<option value="${f.idFacultad}">${f.nombreFacultad}</option>`)).join('');
+      $('#m-filtro-fac').innerHTML = optAll;
+      $('#c-filtro-fac').innerHTML = optAll;
+      const optSel = ['<option value="">— Facultad —</option>']
+        .concat(list.map(f=>`<option value="${f.idFacultad}">${f.nombreFacultad}</option>`)).join('');
+      $('#m-fac').innerHTML = optSel; $('#c-fac').innerHTML = optSel;
+    }
+
+    async function cargarCarreras(idFac=null){
+      const page = await send(`${API.carreras}?page=0&size=999${idFac?`&idFacultad=${idFac}`:''}`);
+      const list = page?.content||[];
+      const optAll = ['<option value="">— Todas las carreras —</option>']
+        .concat(list.map(c=>`<option value="${c.idCarrera}">${c.nombreCarrera}</option>`)).join('');
+      $('#m-filtro-car').innerHTML = optAll;
+      const optSel = ['<option value="">— Carrera —</option>']
+        .concat(list.map(c=>`<option value="${c.idCarrera}">${c.nombreCarrera}</option>`)).join('');
+      $('#m-car').innerHTML = optSel;
+    }
+
+    async function cargarDocentes(){
+      const list = await send(API.docentesSel);
+      const opts = ['<option value="">— Docente a cargo —</option>']
+        .concat((list||[]).map(d=>`<option value="${d.id}">${d.label}</option>`)).join('');
+      $('#m-doc').innerHTML = opts;
+    }
+
+    // ===== listados =====
+    async function loadMaterias(){
+      const st = state.m;
+      const page = await fetchPage(API.materias, {
+        page:st.page, size:st.size, q:($('#m-search').value||''), idCarrera: $('#m-filtro-car').value||''
+      });
+      st.total = page?.totalElements||0;
+      const rows = (page?.content||[]).map(x=>`
+        <tr>
+          <td>${x.idMateria}</td>
+          <td>${x.codMateria??''}</td>
+          <td>${x.nombreMateria??''}</td>
+          <td>${x.semestre??''}</td>
+          <td>${x.idCarrera??''}</td>
+          <td>
+            <button class="btn" data-edit-m="${x.idMateria}"><i class="fas fa-edit"></i> Editar</button>
+            <button class="logout" data-del-m="${x.idMateria}" style="padding:10px 14px;border-radius:12px"><i class="fas fa-trash"></i> Eliminar</button>
+          </td>
+        </tr>`).join('');
+      $('#m-table').innerHTML = `
+        <div style="overflow:auto">
+          <table class="table">
+            <thead><tr>
+              <th>ID</th><th>Código</th><th>Nombre</th><th>Semestre</th><th>Carrera (id)</th><th>Acciones</th>
+            </tr></thead>
+            <tbody id="m-body">${rows || `<tr><td colspan="6" style="padding:14px;color:#6A7A6D">Sin resultados</td></tr>`}</tbody>
+          </table>
+        </div>${pagerHTML('m')}`;
+    }
+
+    async function loadCarreras(){
+      const st = state.c;
+      const page = await fetchPage(API.carreras, {
+        page:st.page, size:st.size, q:($('#c-search').value||''), idFacultad: $('#c-filtro-fac').value||''
+      });
+      st.total = page?.totalElements||0;
+      const rows = (page?.content||[]).map(x=>`
+        <tr>
+          <td>${x.idCarrera}</td>
+          <td>${x.nombreCarrera??''}</td>
+          <td>${x.idFacultad??''}</td>
+          <td>${x.idPersonaCoordinador??''}</td>
+          <td>
+            <button class="btn" data-edit-c="${x.idCarrera}"><i class="fas fa-edit"></i> Editar</button>
+            <button class="logout" data-del-c="${x.idCarrera}" style="padding:10px 14px;border-radius:12px"><i class="fas fa-trash"></i> Eliminar</button>
+          </td>
+        </tr>`).join('');
+      $('#c-table').innerHTML = `
+        <div style="overflow:auto">
+          <table class="table">
+            <thead><tr>
+              <th>ID</th><th>Carrera</th><th>Facultad (id)</th><th>Coord. (id_persona)</th><th>Acciones</th>
+            </tr></thead>
+            <tbody id="c-body">${rows || `<tr><td colspan="5" style="padding:14px;color:#6A7A6D">Sin resultados</td></tr>`}</tbody>
+          </table>
+        </div>${pagerHTML('c')}`;
+    }
+
+    async function loadFacultades(){
+      const st = state.f;
+      const page = await fetchPage(API.facultades, {page:st.page, size:st.size, q:($('#f-search').value||'')});
+      st.total = page?.totalElements||0;
+      const rows = (page?.content||[]).map(x=>`
+        <tr>
+          <td>${x.idFacultad}</td>
+          <td>${x.nombreFacultad??''}</td>
+          <td>
+            <button class="btn" data-edit-f="${x.idFacultad}"><i class="fas fa-edit"></i> Editar</button>
+            <button class="logout" data-del-f="${x.idFacultad}" style="padding:10px 14px;border-radius:12px"><i class="fas fa-trash"></i> Eliminar</button>
+          </td>
+        </tr>`).join('');
+      $('#f-table').innerHTML = `
+        <div style="overflow:auto">
+          <table class="table">
+            <thead><tr>
+              <th>ID</th><th>Facultad</th><th>Acciones</th>
+            </tr></thead>
+            <tbody id="f-body">${rows || `<tr><td colspan="3" style="padding:14px;color:#6A7A6D">Sin resultados</td></tr>`}</tbody>
+          </table>
+        </div>${pagerHTML('f')}`;
+    }
+
+    // ===== filtros / recarga =====
+    $('#m-search').addEventListener('input', ()=>{ state.m.page=0; loadMaterias(); });
+    $('#c-search').addEventListener('input', ()=>{ state.c.page=0; loadCarreras(); });
+    $('#f-search').addEventListener('input', ()=>{ state.f.page=0; loadFacultades(); });
+    $('#m-ref').addEventListener('click', loadMaterias);
+    $('#c-ref').addEventListener('click', loadCarreras);
+    $('#f-ref').addEventListener('click', loadFacultades);
+
+    $('#c-filtro-fac').addEventListener('change', ()=>{ state.c.page=0; loadCarreras(); });
+    $('#m-filtro-fac').addEventListener('change', async ()=>{ await cargarCarreras($('#m-filtro-fac').value||null); state.m.page=0; loadMaterias(); });
+    $('#m-filtro-car').addEventListener('change', ()=>{ state.m.page=0; loadMaterias(); });
+
+    // ===== paginadores (delegación) =====
+    document.addEventListener('click', e=>{
+      const t = e.target;
+      if(t.matches('[data-prev="m"]')){ state.m.page=Math.max(0,state.m.page-1); loadMaterias(); }
+      if(t.matches('[data-next="m"]')){ state.m.page++; loadMaterias(); }
+      if(t.matches('[data-prev="c"]')){ state.c.page=Math.max(0,state.c.page-1); loadCarreras(); }
+      if(t.matches('[data-next="c"]')){ state.c.page++; loadCarreras(); }
+      if(t.matches('[data-prev="f"]')){ state.f.page=Math.max(0,state.f.page-1); loadFacultades(); }
+      if(t.matches('[data-next="f"]')){ state.f.page++; loadFacultades(); }
+    });
+
+    // ===== modal / CRUD =====
+    function enableOnly(entity){
+      const sections = { m: '#form-m', c: '#form-c', f: '#form-f' };
+      Object.entries(sections).forEach(([key, sel]) => {
+        const enabled = key === entity;
+        const box = document.querySelector(sel);
+        box.style.display = enabled ? 'block' : 'none';
+        box.querySelectorAll('input,select,textarea,button').forEach(el => { el.disabled = !enabled; });
+      });
+    }
+    const backdrop = $('#modalBackdrop'), form = $('#modalForm'), modalTitle = $('#modalTitle');
+    const showModal = async (entity, title) => {
+      $('#form-entity').value = entity; $('#form-id').value = '';
+      modalTitle.textContent = title; enableOnly(entity);
+      await cargarFacultades();
+      if(entity==='m'){
+        const idFac = $('#m-fac').value || $('#m-filtro-fac').value || null;
+        await cargarCarreras(idFac || null);
+        await cargarDocentes();
+      }
+      backdrop.classList.add('open');
+    };
+    const closeModal = ()=>{ backdrop.classList.remove('open'); form.reset(); enableOnly('m'); };
+    $('#btnCancel').addEventListener('click', closeModal);
+    backdrop.addEventListener('click', e=>{ if(e.target===backdrop) closeModal(); });
+    $('#m-fac').addEventListener('change', async ()=>{ await cargarCarreras($('#m-fac').value||null); });
+
+    // Abrir NUEVOS
+    $('#m-add').addEventListener('click', ()=> showModal('m','Nueva Materia'));
+    $('#c-add').addEventListener('click', ()=> showModal('c','Nueva Carrera'));
+    $('#f-add').addEventListener('click', ()=> showModal('f','Nueva Facultad'));
+
+    // Editar / Eliminar (delegación)
+    document.addEventListener('click', async (e)=>{
+      const t = e.target;
+
+      // Materia
+      if(t.matches('[data-edit-m]')){
+        const id = t.getAttribute('data-edit-m');
+        const it = await send(`${API.materias}/${id}`);
+        await showModal('m','Editar Materia');
+        $('#form-id').value = it.idMateria;
+        $('#m-cod').value = it.codMateria||'';
+        $('#m-nom').value = it.nombreMateria||'';
+        $('#m-sem').value = it.semestre||'';
+        let idFac = '';
+        if(it.idCarrera){
+          const car = await send(`${API.carreras}/${it.idCarrera}`); idFac = car.idFacultad ?? '';
+        }
+        if(idFac){ $('#m-fac').value = String(idFac); await cargarCarreras(idFac); }
+        $('#m-car').value = it.idCarrera ?? '';
+        await cargarDocentes();
+        try{
+          const dm = await send(`${API.materias}/${id}/docente`);
+          if(dm && dm.idDocente){ $('#m-doc').value = String(dm.idDocente); }
+        }catch(_){}
+      }
+      if(t.matches('[data-del-m]')){
+        const id = t.getAttribute('data-del-m');
+        if(confirm('¿Eliminar la materia?')){ await send(`${API.materias}/${id}`, {method:'DELETE'}); await loadMaterias(); }
+      }
+
+      // Carrera
+      if(t.matches('[data-edit-c]')){
+        const id = t.getAttribute('data-edit-c');
+        const it = await send(`${API.carreras}/${id}`);
+        await showModal('c','Editar Carrera');
+        $('#form-id').value = it.idCarrera;
+        $('#c-nom').value = it.nombreCarrera||'';
+        $('#c-fac').value = it.idFacultad ?? '';
+        $('#c-idper').value = it.idPersonaCoordinador ?? '';
+      }
+      if(t.matches('[data-del-c]')){
+        const id = t.getAttribute('data-del-c');
+        if(confirm('¿Eliminar la carrera?')){ await send(`${API.carreras}/${id}`, {method:'DELETE'}); await loadCarreras(); }
+      }
+
+      // Facultad
+      if(t.matches('[data-edit-f]')){
+        const id = t.getAttribute('data-edit-f');
+        const it = await send(`${API.facultades}/${id}`);
+        await showModal('f','Editar Facultad');
+        $('#form-id').value = it.idFacultad; $('#f-nom').value = it.nombreFacultad||'';
+      }
+      if(t.matches('[data-del-f]')){
+        const id = t.getAttribute('data-del-f');
+        if(confirm('¿Eliminar la facultad?')){ await send(`${API.facultades}/${id}`, {method:'DELETE'}); await loadFacultades(); }
+      }
+    });
+
+    // Guardar
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const entity = $('#form-entity').value, id = $('#form-id').value;
+      let url, method, payload={};
+
+      if(entity==='m'){
+        if(!$('#m-car').value){ alert('Selecciona una carrera.'); return; }
+        if(!$('#m-doc').value){ alert('Selecciona el docente a cargo.'); return; }
+        url = id ? `${API.materias}/${id}` : API.materias;
+        method = id ? 'PUT' : 'POST';
+        payload = {
+          codMateria: $('#m-cod').value.trim(),
+          nombreMateria: $('#m-nom').value.trim(),
+          semestre: $('#m-sem').value.trim() || null,
+          idCarrera: Number($('#m-car').value)
+        };
+        const res = await send(url,{method, body:payload});
+        const materiaId = id ? Number(id) : Number(res?.idMateria);
+        if(!materiaId){ alert('No se pudo obtener el ID de la materia.'); return; }
+        await send(`${API.materias}/${materiaId}/docente`, {
+          method:'PUT', body:{ idDocente: Number($('#m-doc').value) }
+        });
+        closeModal(); await loadMaterias(); await cargarFacultades(); await cargarCarreras($('#m-filtro-fac').value||null); return;
+      }
+
+      if(entity==='c'){
+        if(!$('#c-fac').value){ alert('Selecciona una facultad.'); return; }
+        url = id ? `${API.carreras}/${id}` : API.carreras;
+        method = id ? 'PUT' : 'POST';
+        payload = {
+          nombreCarrera: $('#c-nom').value.trim(),
+          idFacultad: Number($('#c-fac').value),
+          idPersonaCoordinador: $('#c-idper').value ? Number($('#c-idper').value) : null
+        };
+        await send(url,{method, body:payload});
+        closeModal(); await loadCarreras(); await cargarFacultades(); return;
+      }
+
+      // Facultad
+      url = id ? `${API.facultades}/${id}` : API.facultades;
+      method = id ? 'PUT' : 'POST';
+      payload = { nombreFacultad: $('#f-nom').value.trim() };
+      await send(url,{method, body:payload});
+      closeModal(); await loadFacultades(); await cargarFacultades();
+    });
+
+    // Tabs
+    document.addEventListener('click',(e)=>{
+      const b = e.target.closest('[data-tab]'); if(!b) return;
+      const tab = b.getAttribute('data-tab');
+      document.querySelectorAll('.tabs .btn').forEach(x=>x.classList.remove('is-active'));
+      b.classList.add('is-active');
+      $$('[data-content]').forEach(n=> n.style.display = n.getAttribute('data-content')===tab ? 'block' : 'none');
+    });
+
+    // Init
+    (async function init(){
+      await cargarFacultades(); await cargarCarreras();
+      await loadMaterias(); await loadCarreras(); await loadFacultades();
+
+      // responsive inicial
+      function handleResize(){
+        if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+        else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+      }
+      handleResize(); window.addEventListener('resize', handleResize);
+    })();
+  </script>
+</body>
+</html>

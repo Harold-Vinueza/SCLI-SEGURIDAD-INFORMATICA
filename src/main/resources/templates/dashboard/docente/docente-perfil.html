@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mi perfil - Docente</title>
+
+  <!-- Tema global + rompe-caché -->
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <style>
+    .page-wrap{display:grid;grid-template-columns:300px 1fr;gap:16px}
+    @media (max-width:900px){.page-wrap{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .card + .card{margin-top:14px}
+    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .card-title{margin:0;font-size:1.05rem;font-weight:700}
+    .sub{font-size:.9rem;color:#6b7280}
+    .divider{height:1px;background:#eef2f7;margin:12px 0}
+
+    .avatar{width:112px;height:112px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#10b981;color:#fff;font-weight:800;font-size:1.8rem;margin:0 auto 10px}
+    .avatar-img{width:112px;height:112px;border-radius:999px;object-fit:cover;border:1px solid #e5e7eb;display:block;margin:0 auto 10px}
+
+    .profile-name{font-weight:800;text-align:center}
+    .profile-dep{color:#6b7280;text-align:center}
+
+    .quick{display:grid;gap:8px;margin-top:12px}
+    .q-item{display:flex;align-items:center;gap:10px;color:#334155}
+    .q-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#f3f4f6}
+    .q-label{font-size:.85rem;color:#6b7280}
+    .q-value{font-size:.95rem}
+
+    .dl{display:grid;grid-template-columns:200px 1fr;gap:10px 12px}
+    @media (max-width:700px){.dl{grid-template-columns:1fr}}
+    .dl .k{color:#6b7280}
+    .section-title{margin:0 0 6px 0;font-size:1.05rem;font-weight:700}
+
+    .banner{padding:10px 12px;border-radius:10px;margin-bottom:10px}
+    .banner.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .banner.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+
+    /* Modal */
+    dialog{border:none;border-radius:14px;max-width:720px;width:96%;padding:0;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #e5e7eb}
+    .modal-body{padding:16px}
+    .modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid #e5e7eb}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}}
+    label{display:block;font-size:.9rem;color:#6b7280;margin-bottom:6px}
+    input[type="text"],input[type="email"],input[type="file"]{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+    .hint{font-size:.85rem;color:#6b7280}
+    .btn.ghost{background:#eef2ff;color:#1f2937}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/docente}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/reservas}"><i class="fas fa-file-alt"></i> Mis Reservas</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/horarios}"><i class="fas fa-calendar-alt"></i> Mis Horarios</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/asistencias}"><i class="fas fa-user-check"></i> Asistencias</a>
+      <a class="nav-item active" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('Aquí puedes ver y actualizar tu información personal y académica.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">DC</div>
+          <span id="userName">Docente</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-user"></i> Mi perfil</h1>
+
+      <!-- mensajes -->
+      <div th:if="${ok}"    class="banner ok"  th:text="${ok}"></div>
+      <div th:if="${error}" class="banner err" th:text="${error}"></div>
+
+      <div class="page-wrap">
+        <!-- ===== Columna izquierda: Resumen / Acciones ===== -->
+        <aside class="card" style="text-align:center">
+          <img th:if="${perfil != null and perfil.fotoUrl != null}" th:src="${perfil.fotoUrl}" alt="foto" class="avatar-img"/>
+          <div th:if="${perfil == null or perfil.fotoUrl == null}" class="avatar" id="bigAvatar">DC</div>
+
+          <div class="profile-name" th:text="${perfil != null ? (perfil.nombres + ' ' + perfil.apellidos) : 'Docente'}">Docente</div>
+          <div class="profile-dep sub" th:text="${perfil != null ? perfil.departamento : '-'}">Departamento</div>
+
+          <div class="divider"></div>
+
+          <!-- Atajos de contacto (solo lectura, no altera funcionalidad) -->
+          <div class="quick">
+            <div class="q-item">
+              <div class="q-ico"><i class="fas fa-envelope"></i></div>
+              <div>
+                <div class="q-label">Correo</div>
+                <div class="q-value" th:text="${perfil != null ? perfil.correo : '-'}">-</div>
+              </div>
+            </div>
+            <div class="q-item">
+              <div class="q-ico"><i class="fas fa-phone"></i></div>
+              <div>
+                <div class="q-label">Teléfono</div>
+                <div class="q-value" th:text="${perfil != null ? perfil.telefono : '-'}">-</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px">
+            <button id="btnOpenModal" class="btn" type="button"><i class="fas fa-pen"></i> Editar perfil</button>
+          </div>
+        </aside>
+
+        <!-- ===== Columna derecha: Detalle ===== -->
+        <div>
+          <!-- Datos personales + contacto -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Datos personales y contacto</h3>
+              <span class="sub">Solo lectura</span>
+            </div>
+            <div class="dl">
+              <div class="k">Nombres</div>   <div th:text="${perfil != null ? perfil.nombres : '-'}">-</div>
+              <div class="k">Apellidos</div> <div th:text="${perfil != null ? perfil.apellidos : '-'}">-</div>
+              <div class="k">Correo</div>    <div th:text="${perfil != null ? perfil.correo : '-'}">-</div>
+              <div class="k">Teléfono</div>  <div th:text="${perfil != null ? perfil.telefono : '-'}">-</div>
+            </div>
+          </div>
+
+          <!-- Información académica -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Información académica</h3>
+            </div>
+            <div class="dl">
+              <div class="k">Título académico</div> <div th:text="${perfil != null ? perfil.tituloAcademico : '-'}">-</div>
+              <div class="k">Departamento</div>     <div th:text="${perfil != null ? perfil.departamento : '-'}">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Modal Edición (sin cambios de funcionalidad) ===== -->
+  <dialog id="dlgEdit">
+    <form id="formPerfil" th:action="@{/dashboard/docente/perfil}" method="post" th:object="${perfil}" enctype="multipart/form-data">
+      <div class="modal-head">
+        <div style="font-weight:600"><i class="fas fa-pen"></i> Editar perfil</div>
+        <button type="button" id="btnClose" class="btn ghost"><i class="fas fa-times"></i> Cerrar</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid">
+          <div>
+            <label>Nombres</label>
+            <input type="text" th:field="*{nombres}" required>
+          </div>
+          <div>
+            <label>Apellidos</label>
+            <input type="text" th:field="*{apellidos}" required>
+          </div>
+          <div>
+            <label>Correo</label>
+            <input type="email" th:field="*{correo}" required>
+          </div>
+          <div>
+            <label>Teléfono</label>
+            <input type="text" th:field="*{telefono}">
+          </div>
+          <div>
+            <label>Título académico</label>
+            <input type="text" th:field="*{tituloAcademico}">
+          </div>
+          <div>
+            <label>Departamento</label>
+            <input type="text" th:field="*{departamento}">
+          </div>
+
+          <!-- Foto + previsualización + validación -->
+          <div style="grid-column:1/-1">
+            <label>Foto de perfil</label>
+            <input type="file" name="foto" id="fotoInput" accept="image/*">
+            <div class="hint" style="margin-top:6px">Sugerido 300×300 (JPG/PNG). Peso máximo 2 MB.</div>
+            <div style="margin-top:10px;text-align:center">
+              <img id="previewImg" src="" alt="Previsualización" style="max-width:140px;display:none;border-radius:12px;border:1px solid #e5e7eb"/>
+            </div>
+            <div id="errFoto" class="banner err" style="display:none;margin-top:10px">Archivo inválido.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="submit" class="btn"><i class="fas fa-save"></i> Guardar</button>
+        <button type="button" class="btn ghost" id="btnCancel"><i class="fas fa-rotate-left"></i> Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ==== JS común ==== -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+    // Header/Sidebar
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const bigAvatar    = document.getElementById('bigAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'DC';
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n = sessionStorage.getItem('nombreUsuario') || 'Docente';
+      userName.textContent = n; userAvatar.textContent = ini(n); if(bigAvatar) bigAvatar.textContent = ini(n);
+    })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}
+      sessionStorage.clear(); location.href='/login'; });
+
+    // Modal
+    const dlg = document.getElementById('dlgEdit');
+    const btnOpen = document.getElementById('btnOpenModal');
+    const btnClose = document.getElementById('btnClose');
+    const btnCancel = document.getElementById('btnCancel');
+
+    btnOpen?.addEventListener('click', ()=> dlg.showModal());
+    btnClose?.addEventListener('click', ()=> dlg.close());
+    btnCancel?.addEventListener('click', ()=> dlg.close());
+
+    // Cerrar al hacer clic fuera (fallback)
+    dlg?.addEventListener('click', (e)=>{
+      const rect = dlg.getBoundingClientRect();
+      const inDialog = (e.clientX >= rect.left && e.clientX <= rect.right &&
+                        e.clientY >= rect.top  && e.clientY <= rect.bottom);
+      if(!inDialog) dlg.close();
+    });
+
+    // Previsualización y validación de foto
+    const fotoInput = document.getElementById('fotoInput');
+    const previewImg = document.getElementById('previewImg');
+    const errFoto = document.getElementById('errFoto');
+
+    fotoInput?.addEventListener('change', ()=>{
+      errFoto.style.display = 'none';
+      previewImg.style.display = 'none';
+      const file = fotoInput.files[0];
+      if(!file) return;
+
+      const validTypes = ['image/jpeg','image/png'];
+      if(!validTypes.includes(file.type)){
+        errFoto.textContent = 'Formato no válido. Solo JPG o PNG.';
+        errFoto.style.display = 'block';
+        fotoInput.value = '';
+        return;
+      }
+      if(file.size > 2*1024*1024){
+        errFoto.textContent = 'El archivo es demasiado grande (máx. 2MB).';
+        errFoto.style.display = 'block';
+        fotoInput.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = e=>{
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'inline-block';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Responsive
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+  </script>
+</body>
+</html>

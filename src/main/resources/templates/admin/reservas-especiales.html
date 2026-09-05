@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reservas Especiales | Admin</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- Tema global -->
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+
+  <!-- Estilos propios (ligeros) alineados al tema -->
+  <style>
+    .grid{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+    @media(max-width:1024px){.grid{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+    .card h3{margin:0 0 10px 0}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:10px;border-bottom:1px solid var(--border-light);text-align:left;vertical-align:top}
+    .table thead th{background:#F9FAF7;font-weight:600}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .badge{padding:2px 10px;border-radius:999px;font-size:.8rem;display:inline-block}
+    .badge-green{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .badge-gray{background:#eef2f7;color:#334155;border:1px solid #e5e7eb}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row>div>label{font-size:.9rem;color:var(--text-muted);display:block;margin-bottom:6px}
+    .row input,.row textarea{width:100%;padding:10px 12px;border:1px solid var(--border-light);border-radius:10px}
+    .row textarea{min-height:96px;resize:vertical}
+    @media(max-width:640px){.row{grid-template-columns:1fr}}
+    /* Complementos de botones para mantener tus clases sin romper el tema */
+    .btn-warning{background:var(--primary-gold);color:#111;border:none}
+    .btn-warning:hover{filter:brightness(.95)}
+    .btn-primary{background:var(--button-green);color:#fff;border:none}
+    .btn-primary:hover{filter:brightness(.95)}
+  </style>
+</head>
+<body>
+
+<!-- ===== Sidebar (tema) ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-section">
+    <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+    <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+  </div>
+  <nav class="nav-menu">
+    <a class="nav-item" th:href="@{/dashboard/admin}"><i class="fas fa-home"></i> Inicio</a>
+   
+    <a class="nav-item" th:href="@{/dashboard/admin/horarios}"><i class="fas fa-calendar-alt"></i> Horarios</a>
+    
+    <a class="nav-item" th:href="@{/dashboard/admin/auditorias}"><i class="fas fa-search"></i> Auditorías</a>
+    <a class="nav-item" th:href="@{/dashboard/admin/sesiones}"><i class="fas fa-sitemap"></i> Sesiones</a>
+  </nav>
+  <div class="help-section">
+    <button class="help-btn" type="button" onclick="alert('Administra reservas especiales, visibles también como anuncios si así lo decides.')">
+      <i class="fas fa-question-circle"></i> Ayuda
+    </button>
+  </div>
+</aside>
+
+<!-- ===== Main ===== -->
+<main class="main-content" id="mainContent">
+  <header class="header">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="user-section">
+      <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+        <div class="user-avatar" id="userAvatar">AD</div>
+        <span id="userName">Administrador</span>
+        <i class="fas fa-chevron-down"></i>
+      </button>
+      <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+        <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin}"><i class="fas fa-gauge"></i> Panel</a>
+        <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="dashboard">
+    <h1 class="page-title"><i class="fas fa-street-view"></i> Reservas especiales</h1>
+
+    <div class="grid">
+      <!-- ====== Formulario ====== -->
+      <div class="card">
+        <h3>Nueva / Editar</h3>
+        <form th:action="@{/admin/reservas-especiales/guardar}" method="post" th:object="${nueva}" id="formNueva">
+          <input type="hidden" th:field="*{idReserva}"/>
+
+          <div class="row">
+            <div>
+              <label>Título (opcional)</label>
+              <input th:field="*{titulo}" placeholder="p.ej. Taller intensivo"/>
+            </div>
+            <div>
+              <label>Unidad solicitante</label>
+              <input th:field="*{unidadSolicitante}" required/>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Motivo</label>
+              <input th:field="*{motivo}" required/>
+            </div>
+            <div>
+              <label>Laboratorio (ID)</label>
+              <input th:field="*{idLaboratorio}" type="number" min="1" required/>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Fecha inicio</label>
+              <input th:field="*{fechaInicio}" type="date" required/>
+            </div>
+            <div>
+              <label>Fecha fin</label>
+              <input th:field="*{fechaFin}" type="date" required/>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Prioridad</label>
+              <input th:field="*{prioridad}" type="checkbox"/> Alta
+            </div>
+            <div>
+              <label>Publicado</label>
+              <input th:field="*{publicado}" type="checkbox"/> Visible como anuncio
+            </div>
+          </div>
+
+          <div class="row" style="grid-template-columns:1fr;">
+            <div>
+              <label>Observaciones</label>
+              <textarea th:field="*{observaciones}" placeholder="Notas…"></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Guardar</button>
+            <button class="btn" type="reset" id="btnLimpiar"><i class="fas fa-eraser"></i> Limpiar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ====== Tabla ====== -->
+      <div class="card">
+        <h3>Listado</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Título / Motivo</th>
+              <th>Unidad</th>
+              <th>Fechas</th>
+              <th>Lab</th>
+              <th>Prioridad</th>
+              <th>Publicado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="r, it : ${reservas}">
+              <td th:text="${it.index + 1}">1</td>
+              <td>
+                <div th:text="${r.titulo != null && !#strings.isEmpty(r.titulo) ? r.titulo : r.motivo}">Taller</div>
+                <small th:text="${r.titulo != null && !#strings.isEmpty(r.titulo) ? r.motivo : ''}"></small>
+              </td>
+              <td th:text="${r.unidadSolicitante}">Facultad X</td>
+              <td th:text="${#temporals.format(r.fechaInicio,'yyyy-MM-dd')} + ' → ' + ${#temporals.format(r.fechaFin,'yyyy-MM-dd')}">2025-08-10 → 2025-08-12</td>
+              <td th:text="${r.idLaboratorio}">1</td>
+              <td>
+                <span th:classappend="${r.prioridad} ? 'badge badge-green' : 'badge badge-gray'"
+                      th:text="${r.prioridad} ? 'Alta' : 'Normal'">Normal</span>
+              </td>
+              <td>
+                <span th:classappend="${r.publicado} ? 'badge badge-green' : 'badge badge-gray'"
+                      th:text="${r.publicado} ? 'Sí' : 'No'">No</span>
+              </td>
+              <td class="actions">
+                <button class="btn btn-warning"
+                        type="button"
+                        th:attr="
+                          data-id=${r.idReserva},
+                          data-titulo=${r.titulo},
+                          data-unidad=${r.unidadSolicitante},
+                          data-motivo=${r.motivo},
+                          data-idlab=${r.idLaboratorio},
+                          data-fechaini=${#temporals.format(r.fechaInicio,'yyyy-MM-dd')},
+                          data-fechafin=${#temporals.format(r.fechaFin,'yyyy-MM-dd')},
+                          data-obs=${r.observaciones},
+                          data-prioridad=${r.prioridad},
+                          data-publicado=${r.publicado}
+                        "
+                        onclick="editarFila(this)">
+                  <i class="fas fa-pen"></i> Editar
+                </button>
+
+                <form th:action="@{'/admin/reservas-especiales/publicar/' + ${r.idReserva}}" method="post" style="display:inline">
+                  <button class="btn" type="submit">
+                    <i class="fas" th:classappend="${r.publicado} ? 'fa-eye-slash' : 'fa-eye'"></i>
+                    <span th:text="${r.publicado} ? 'Ocultar' : 'Publicar'">Publicar</span>
+                  </button>
+                </form>
+
+                <form th:action="@{'/admin/reservas-especiales/eliminar/' + ${r.idReserva}}" method="post" style="display:inline" onsubmit="return confirm('¿Eliminar la reserva?');">
+                  <button class="btn btn-danger" type="submit"><i class="fas fa-trash"></i> Eliminar</button>
+                </form>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(reservas)}">
+              <td colspan="8" style="color:var(--text-muted)">No hay reservas registradas.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- INYECTAR nombre/rol para el header -->
+<script th:inline="javascript">
+  const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+  const _rol    = /*[['' + ${session.rol}]]*/ null;
+  if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+  if (_rol)    sessionStorage.setItem('rol', _rol);
+</script>
+
+<!-- JS propio (con la misma lógica que tenías) -->
+<script th:inline="javascript">
+  const f = document.getElementById('formNueva');
+  const btnLimpiar = document.getElementById('btnLimpiar');
+
+  function editarFila(btn){
+    const d = btn.dataset;
+    f.action = /*[[@{/admin/reservas-especiales/editar}]]*/ '/admin/reservas-especiales/editar';
+
+    f.querySelector('[name="idReserva"]').value         = d.id || '';
+    f.querySelector('[name="titulo"]').value            = d.titulo || '';
+    f.querySelector('[name="unidadSolicitante"]').value = d.unidad || '';
+    f.querySelector('[name="motivo"]').value            = d.motivo || '';
+    f.querySelector('[name="idLaboratorio"]').value     = d.idlab || '';
+    f.querySelector('[name="fechaInicio"]').value       = d.fechaini || '';
+    f.querySelector('[name="fechaFin"]').value          = d.fechafin || '';
+    f.querySelector('[name="observaciones"]').value     = d.obs || '';
+    f.querySelector('[name="prioridad"]').checked       = (d.prioridad === 'true');
+    f.querySelector('[name="publicado"]').checked       = (d.publicado === 'true');
+
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  btnLimpiar?.addEventListener('click', ()=>{
+    f.action = /*[[@{/admin/reservas-especiales/guardar}]]*/ '/admin/reservas-especiales/guardar';
+    f.reset();
+  });
+</script>
+
+<!-- Comportamiento común del layout -->
+<script>
+  const menuToggle   = document.getElementById('menuToggle');
+  const sidebar      = document.getElementById('sidebar');
+  const mainContent  = document.getElementById('mainContent');
+  const userInfo     = document.getElementById('userInfo');
+  const userDropdown = document.getElementById('userDropdown');
+  const userName     = document.getElementById('userName');
+  const userAvatar   = document.getElementById('userAvatar');
+  const logoutBtn    = document.getElementById('logoutBtn');
+
+  const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'AD';
+
+  menuToggle?.addEventListener('click', ()=>{
+    sidebar.classList.toggle('hidden');
+    mainContent.classList.toggle('expanded');
+  });
+  userInfo?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    userDropdown.classList.toggle('show');
+  });
+  document.addEventListener('click', (e)=>{
+    if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)){
+      userDropdown.classList.remove('show');
+    }
+  });
+
+  (function(){
+    const n = sessionStorage.getItem('nombreUsuario') || 'Administrador';
+    if(userName) userName.textContent = n;
+    if(userAvatar) userAvatar.textContent = ini(n);
+  })();
+
+  logoutBtn?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    try{ await fetch('/logout',{method:'GET',credentials:'include'}) }catch(_){}
+    sessionStorage.clear();
+    location.href='/login';
+  });
+
+  // Responsive inicial
+  function handleResize(){
+    if (window.innerWidth <= 768) {
+      sidebar.classList.add('hidden');
+      mainContent.classList.add('expanded');
+    } else {
+      sidebar.classList.remove('hidden');
+      mainContent.classList.remove('expanded');
+    }
+  }
+  handleResize();
+  window.addEventListener('resize', handleResize);
+</script>
+</body>
+</html>

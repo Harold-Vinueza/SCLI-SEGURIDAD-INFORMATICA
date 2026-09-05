@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Admin - Sistema de Control de Laboratorios</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- CSS con rompe-caché y fallback -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css" />
+
+        <style>
+          .badge{padding:2px 8px;border-radius:999px;font-size:.8rem}
+          .badge-green{background:#e7f9ed;color:#166534}
+        </style>
+
+
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar" aria-label="Barra lateral">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop" aria-hidden="true"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+
+    <nav class="nav-menu" aria-label="Navegación lateral">
+      <a href="#" class="nav-item active"><i class="fas fa-home"></i> Inicio</a>
+    </nav>
+
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="showHelp()">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
+    <!-- Header -->
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        </button>
+
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/perfil}" href="#">
+            <i class="fas fa-user"></i> Mi perfil
+          </a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/admin/cambio-clave}" href="#">
+            <i class="fas fa-key"></i> Cambio de clave
+          </a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#">
+            <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Vista Administrador</h1>
+
+      <!-- Modules Grid -->
+      <div class="modules-grid">
+        <a class="module-card" th:href="@{/dashboard/admin/activos}" href="/dashboard/admin/activos">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-laptop"></i></div>
+            <div class="module-title">Activos de laboratorio</div>
+          </div>
+        </a>
+
+        <a class="module-card" th:href="@{/dashboard/admin/horarios}" href="/dashboard/admin/horarios">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="module-title">Planificación de Horarios</div>
+          </div>
+        </a>
+
+        <a class="module-card" th:href="@{/admin/usuarios}" href="/admin/usuarios">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-users"></i></div>
+            <div class="module-title">Gestión de Usuarios</div>
+          </div>
+        </a>
+
+        <a class="module-card" th:href="@{/dashboard/admin/laboratorios}" href="/dashboard/admin/laboratorios">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-building"></i></div>
+            <div class="module-title">Gestión de Laboratorios</div>
+          </div>
+        </a>
+
+        <a class="module-card" th:href="@{/dashboard/admin/materias}" href="/dashboard/admin/materias">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-book"></i></div>
+            <div class="module-title">Gestión de Materias</div>
+          </div>
+        </a>
+
+        <a class="module-card" th:href="@{/dashboard/admin/solicitudes}" href="/dashboard/admin/solicitudes">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="module-title">Solicitudes de reserva de laboratorio (Docente)</div>
+          </div>
+        </a>
+
+        <a class="module-card"
+        th:href="@{/admin/solicitudes-coordinacion}"
+        href="/admin/solicitudes-coordinacion">
+        <div class="module-header">
+          <div class="module-icon"><i class="fas fa-bookmark"></i></div>
+          <div class="module-title">Solicitudes de reserva de laboratorio (Coordinación)</div>
+        </div>
+      </a>
+
+      <a class="module-card"
+        th:href="@{/admin/reservas-especiales}"
+        href="/admin/reservas-especiales">
+        <div class="module-header">
+          <div class="module-icon"><i class="fas fa-street-view"></i></div>
+          <div class="module-title">Reservas Especiales</div>
+        </div>
+      </a>
+
+        <a class="module-card" 
+        th:href="@{/dashboard/admin/auditorias}" 
+        href="/dashboard/admin/auditorias">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-search"></i></div>
+            <div class="module-title">Auditorías</div>
+          </div>
+        </a>
+     
+
+      <a class="module-card" 
+      th:href="@{/dashboard/admin/sesiones}" 
+      href="/dashboard/admin/sesiones">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-sitemap"></i></div>
+            <div class="module-title">Actividad de sesiones</div>
+          </div>
+        </a>
+
+        <!-- Card: Reportes Freddy -->
+        <a class="module-card"
+           th:href="@{/dashboard/admin/reportes/overview}"
+           href="/dashboard/admin/reportes/overview">
+          <div class="module-header">
+            <div class="module-icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="module-title">Reportes</div>
+          </div>
+        </a>
+
+      </div>
+
+
+     
+
+      <!-- Avisos publicados (solo lectura para Admin) -->
+<div class="announcements-section" style="margin-top:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <h2 class="section-title"><i class="fas fa-bullhorn"></i> Avisos publicados</h2>
+    <button class="filter-btn" id="btnRefrescarAvisos" type="button" title="Volver a cargar">
+      <i class="fas fa-rotate"></i> Actualizar
+    </button>
+  </div>
+
+  <!-- Si algún controlador inyecta ${avisos}, se renderiza por Thymeleaf -->
+  <ul th:if="${!#lists.isEmpty(avisos)}"
+      style="list-style:none;padding:0;margin:10px 0 0;display:grid;gap:10px">
+    <li th:each="a : ${avisos}"
+        class="card"
+        style="padding:10px;border:1px solid #e5e7eb;border-radius:12px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+        <div>
+          <b th:text="${a.titulo != null && !#strings.isEmpty(a.titulo) ? a.titulo : a.motivo}">Título</b>
+          <div style="font-size:.9rem;color:#475569">
+            <span th:text="${a.unidadSolicitante}">Unidad</span> ·
+            <span th:text="${#temporals.format(a.fechaInicio, 'dd MMM')}"></span>
+            —
+            <span th:text="${#temporals.format(a.fechaFin, 'dd MMM yyyy')}"></span>
+          </div>
+        </div>
+        <span th:if="${a.prioridad}" class="badge badge-green">Prioritario</span>
+      </div>
+      <div th:if="${a.observaciones}" style="margin-top:6px;font-size:.95rem" th:text="${a.observaciones}"></div>
+    </li>
+  </ul>
+
+  <!-- Fallback por JS si no hay ${avisos} en el modelo -->
+  <div th:if="${#lists.isEmpty(avisos)}" id="avisosPublicadosBox" style="margin-top:10px">
+    Cargando avisos…
+  </div>
+</div>
+    </section>
+  </main>
+
+  <script th:src="@{/js/client-info.js}"></script>
+  <script>window._postClientInfo && window._postClientInfo();</script>
+
+  <!-- Script -->
+  <script th:inline="javascript">
+    // ===== Variables de sesión Thymeleaf -> SessionStorage =====
+    const _nombre = /*[[${session.nombreUsuario}]]*/ 'Administrador';
+    const _rol    = /*[['' + ${session.rol}]]*/ 'ADMIN';
+
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+
+    // ===== DOM =====
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const vistaAnuncio = document.getElementById('vistaAnuncio');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    // ===== Util =====
+    const getIniciales = (name) => {
+      const n = (name || '').trim();
+      if (!n) return 'AD';
+      return n.split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
+    };
+
+    // ===== Toggle menú lateral =====
+    if (menuToggle) {
+      menuToggle.addEventListener('click', () => {
+        sidebar?.classList.toggle('hidden');
+        mainContent?.classList.toggle('expanded');
+      });
+    }
+
+    // ===== Dropdown usuario =====
+    if (userInfo && userDropdown) {
+      userInfo.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown.classList.toggle('show');
+        const expanded = userDropdown.classList.contains('show');
+        userInfo.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        userDropdown.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+      });
+
+      document.addEventListener('click', (ev) => {
+        if (!userDropdown.contains(ev.target) && !userInfo.contains(ev.target)) {
+          userDropdown.classList.remove('show');
+          userInfo.setAttribute('aria-expanded', 'false');
+          userDropdown.setAttribute('aria-hidden', 'true');
+        }
+      });
+    }
+
+    // ===== Nombre y avatar =====
+    const nombreUsuario = sessionStorage.getItem('nombreUsuario') || 'Administrador';
+    if (userName)   userName.textContent = nombreUsuario;
+    if (userAvatar) userAvatar.textContent = getIniciales(nombreUsuario);
+
+    // ===== Validación de rol =====
+    const rol = (sessionStorage.getItem('rol') || '').toLowerCase();
+    if (rol !== 'administrador' && rol !== 'admin') {
+      // Si tu backend ya protege /dashboard, puedes quitar este alert.
+      // alert('Acceso no autorizado.');
+      // window.location.href = '/login';
+    }
+
+    // ===== Logout =====
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          await fetch('/logout', { method: 'GET', credentials: 'include' });
+        } catch (_) {}
+        sessionStorage.clear();
+        window.location.href = '/login';
+      });
+    }
+
+    // ===== Botones de anuncios (placeholder) =====
+    const setVista = (html) => { if (vistaAnuncio) vistaAnuncio.innerHTML = html; };
+    document.getElementById('btnAddAnuncio')?.addEventListener('click', () =>
+      setVista('<i class="fas fa-plus-circle"></i> Agregar anuncio (en desarrollo)')
+    );
+    document.getElementById('btnEditAnuncio')?.addEventListener('click', () =>
+      setVista('<i class="fas fa-edit"></i> Editar anuncio (en desarrollo)')
+    );
+    document.getElementById('btnDeleteAnuncio')?.addEventListener('click', () =>
+      setVista('<i class="fas fa-trash-alt"></i> Eliminar anuncio (en desarrollo)')
+    );
+    document.getElementById('btnFiltro')?.addEventListener('click', () =>
+      alert('Filtro pendiente de implementar')
+    );
+
+    // ===== Ayuda (global) =====
+    function showHelp() {
+      alert('Sistema de Ayuda\n\nEste es el panel de administración del Sistema de Control de Laboratorios.\n\nPara más información, contacta al soporte técnico.');
+    }
+    window.showHelp = showHelp;
+
+    // ===== Responsive inicial =====
+    function handleResize() {
+      if (window.innerWidth <= 768) {
+        sidebar?.classList.add('hidden');
+        mainContent?.classList.add('expanded');
+      } else {
+        sidebar?.classList.remove('hidden');
+        mainContent?.classList.remove('expanded');
+      }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+
+    // ====== Avisos publicados (fetch) ======
+async function cargarAvisosPublicados(){
+  const box = document.getElementById('avisosPublicadosBox');
+  if (!box) return; // si vino por Thymeleaf, no hace falta
+
+  try{
+    const r = await fetch('/api/docentes/avisos', {credentials:'include'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json(); // [{id,titulo,motivo,unidad,fechaInicio,fechaFin,prioridad,observaciones}]
+    if (!Array.isArray(data) || data.length === 0){
+      box.textContent = 'No hay avisos publicados.';
+      return;
+    }
+    box.innerHTML = data.slice(0,10).map(a => `
+      <div class="card" style="padding:10px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+          <div>
+            <b>${(a.titulo && a.titulo.trim()) ? a.titulo : (a.motivo || '')}</b>
+            <div style="font-size:.9rem;color:#475569">
+              <span>${a.unidad ?? ''}</span> ·
+              <span>${a.fechaInicio ?? ''}</span> — <span>${a.fechaFin ?? ''}</span>
+            </div>
+          </div>
+          ${a.prioridad ? '<span class="badge badge-green">Prioritario</span>' : ''}
+        </div>
+        ${a.observaciones ? `<div style="margin-top:6px;font-size:.95rem">${a.observaciones}</div>` : ''}
+      </div>
+    `).join('');
+  }catch(err){
+    console.error('Avisos publicados:', err);
+    box.textContent = 'No se pudieron cargar los avisos.';
+  }
+}
+cargarAvisosPublicados();
+
+// Botón de refresco
+document.getElementById('btnRefrescarAvisos')?.addEventListener('click', cargarAvisosPublicados);
+
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!-- templates/auth/cambiar-clave.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cambiar contraseña - SGIL</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .card{max-width:560px;margin:40px auto;background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+    .actions{display:flex;gap:10px;justify-content:flex-end}
+    .hint{color:#6b7280;font-size:.9rem}
+  </style>
+</head>
+<body class="page">
+  <div class="card">
+    <h2>Debes actualizar tu contraseña</h2>
+    <p class="hint">Por seguridad, cambia la contraseña temporal por una nueva.</p>
+
+    <form method="post" th:action="@{/cambiar-clave}">
+      <div class="field">
+        <label>Contraseña actual</label>
+        <input type="password" name="actual" required/>
+      </div>
+      <div class="field">
+        <label>Nueva contraseña</label>
+        <input type="password" name="nueva" minlength="8" required/>
+      </div>
+      <div class="field">
+        <label>Repite la nueva contraseña</label>
+        <input type="password" name="repetir" minlength="8" required/>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" type="submit"><i class="fa fa-key"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+
+  <script th:inline="javascript">
+    /* Mostrar alerta de éxito si 'ok' está presente */
+    /*[# th:if="${ok}"]*/
+    Swal.fire('Listo', "[[${ok}]]", 'success');
+    /*[/]*/
+
+    /* Mostrar alerta de error si 'error' está presente */
+    /*[# th:if="${error}"]*/
+    Swal.fire('Atención', '[[${error}]]', 'error');
+    /*[/]*/
+  </script>
+</body>
+</html>

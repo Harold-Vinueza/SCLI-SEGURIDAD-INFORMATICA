@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Solicitudes de Coordinador - SGIL</title>
+
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Tema global (con rompe-caché + fallback) -->
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* ——— Estilos específicos de esta vista (ligeros, no pisan el tema) ——— */
+    .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 16px;flex-wrap:wrap}
+    .toolbar select{padding:10px;border:1px solid var(--border-light);border-radius:10px;background:#fff}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+    .table thead th{background:#F9FAF7}
+    .badge{padding:4px 8px;border-radius:999px;font-size:.85rem}
+    .b-pend{background:#FFF3CD}
+    .b-aprob{background:#E6F7E6}
+    .b-rech{background:#FCE8E6}
+    .b-anul{background:#E9ECEF}
+    .actions{display:flex;gap:8px;justify-content:flex-end}
+
+    /* Modal centrado consistente */
+    .modal{position:fixed;inset:0;display:none;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;z-index:1050}
+    .modal.show{display:flex}
+    .dialog{background:#fff;max-width:760px;width:100%;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sidebar (tema) ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-user-tie"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/coordinador}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/coordinador/horarios}"><i class="fas fa-calendar-alt"></i> Gestionar horarios</a>
+      <a class="nav-item active" th:href="@{/coordinador/solicitudes}"><i class="fas fa-file-alt"></i> Solicitudes</a>
+    </nav>
+    <div class="help-section">
+      <!-- Dejo el onclick como está; lo desactivo abajo y uso Swal -->
+      <button class="help-btn" type="button" onclick="alert('Filtra tus solicitudes, revisa sus detalles y anula las pendientes.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">CO</div>
+          <span id="userName">Coordinador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" th:href="@{/dashboard/coordinador}"><i class="fas fa-home"></i> Inicio</a>
+          <a class="dropdown-item" th:href="@{/coordinador/horarios}"><i class="fas fa-calendar-alt"></i> Horarios</a>
+          <a class="dropdown-item" th:href="@{/coordinador/solicitudes}"><i class="fas fa-file-alt"></i> Solicitudes</a>
+          <a class="dropdown-item logout" id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-file-alt"></i> Solicitudes</h1>
+
+      <!-- Toolbar con contenedor del tema -->
+      <div class="announcements-section" style="margin-bottom:20px">
+        <div class="toolbar">
+          <label>Estado:</label>
+          <select id="selEstado">
+            <option value="">(Todos)</option>
+            <option>Pendiente</option>
+            <option>Aprobada</option>
+            <option>Rechazada</option>
+            <option>Anulada</option>
+          </select>
+          <button id="btnBuscar" class="btn"><i class="fas fa-magnifying-glass"></i> Buscar</button>
+        </div>
+      </div>
+
+      <!-- Tabla dentro de tarjeta del tema -->
+      <div class="announcements-section" style="padding:0">
+        <div style="overflow:auto">
+          <table class="table" id="tbl">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Carrera</th>
+                <th>Items</th>
+                <th>Estado</th>
+                <th>Observaciones</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Modal Detalles ===== -->
+  <div class="modal" id="mdDetalles">
+    <div class="dialog">
+      <h3>Detalles de la solicitud <span id="dId" class="muted"></span></h3>
+      <table class="table">
+        <thead>
+          <tr><th>Jornada</th><th>Día</th><th>Hora</th><th>Materia</th></tr>
+        </thead>
+        <tbody id="dBody"></tbody>
+      </table>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn" id="dCerrar">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Sesión a UI ===== -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <!-- ===== Lógica con SweetAlert2 ===== -->
+  <script>
+    // ---------- SweetAlert2 helpers ----------
+    function swalMsg(title='Mensaje', html='', icon='info'){
+      return Swal.fire({ icon, title, html, confirmButtonText:'Aceptar', showCloseButton:true, width:520 });
+    }
+    const Toast = Swal.mixin({
+      toast:true, position:'top-end', showConfirmButton:false, timer:3000, timerProgressBar:true
+    });
+    const toastOk   = m => Toast.fire({icon:'success', title:m});
+    const toastWarn = m => Toast.fire({icon:'warning', title:m});
+    const toastErr  = m => Toast.fire({icon:'error',   title:m});
+
+    // ===== Layout del tema =====
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'CO';
+
+    // Reemplazar el alert del botón Ayuda
+    (function(){
+      const hb = document.querySelector('.help-btn');
+      if(hb){
+        hb.onclick = ()=>{ swalMsg('Ayuda', 'Filtra tus solicitudes, revisa sus detalles y anula las pendientes.', 'info'); return false; };
+      }
+    })();
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Coordinador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}
+      sessionStorage.clear(); location.href='/login'; });
+
+    // Autorización mínima (alert -> Swal)
+    (function(){
+      const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+      if(rol && rol!=='coordinador'){
+        swalMsg('Acceso no autorizado','Tu sesión no tiene permisos para esta vista.','error')
+          .then(()=> location.href='/login');
+      }
+    })();
+
+    function handleResize(){
+      if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+      else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+
+    // ===== Funcionalidad original =====
+    const API = {
+      listar: (estado)=> '/api/coordinador/solicitudes' + (estado? `?estado=${encodeURIComponent(estado)}` : ''),
+      detalles: (id)=> `/api/coordinador/solicitudes/${id}/detalles`,
+      anular: (id)=> `/api/coordinador/solicitudes/${id}/anular`
+    };
+
+    const $ = s=>document.querySelector(s);
+    const tbody = $('#tbody');
+
+    function badge(est){
+      const cls = est==='Pendiente'?'b-pend': est==='Aprobada'?'b-aprob': est==='Rechazada'?'b-rech':'b-anul';
+      return `<span class="badge ${cls}">${est}</span>`;
+    }
+
+    async function cargar(){
+      const est = $('#selEstado').value || '';
+      let r;
+      try{
+        r = await fetch(API.listar(est));
+      }catch(_){
+        toastErr('No se pudo listar'); return;
+      }
+      if(!r.ok){ toastErr('No se pudo listar'); return; }
+      const data = await r.json();
+      tbody.innerHTML = '';
+      data.forEach(x=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${x.idSolicitud}</td>
+          <td>${x.fecha}</td>
+          <td>${x.carrera??''}</td>
+          <td>${x.items}</td>
+          <td>${badge(x.estado)}</td>
+          <td>${x.observaciones??''}</td>
+          <td class="actions">
+            <button class="btn" data-det="${x.idSolicitud}" title="Ver detalles"><i class="fas fa-eye"></i></button>
+            ${x.estado==='Pendiente' ? `<button class="btn btn-danger" data-anular="${x.idSolicitud}"><i class="fas fa-ban"></i> Anular</button>`:''}
+          </td>`;
+        tbody.append(tr);
+      });
+    }
+
+    async function verDetalles(id){
+      const r = await fetch(API.detalles(id));
+      if(!r.ok){ swalMsg('Atención','No autorizado o no existe.','warning'); return; }
+      const data = await r.json();
+      $('#dId').textContent = `#${id}`;
+      const b = $('#dBody'); b.innerHTML='';
+      data.forEach(d=>{
+        const tr = document.createElement('tr');
+        const hora = `${d.horaInicio} - ${d.horaFin}`;
+        tr.innerHTML = `<td>${d.jornada}</td><td>${d.diaSemana}</td><td>${hora}</td><td>${d.materia}</td>`;
+        b.append(tr);
+      });
+      $('#mdDetalles').classList.add('show');
+    }
+    $('#dCerrar').onclick = ()=> $('#mdDetalles').classList.remove('show');
+
+    async function anular(id){
+      const res = await Swal.fire({
+        title: `¿Anular la solicitud #${id}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, anular',
+        cancelButtonText: 'Cancelar'
+      });
+      if(!res.isConfirmed) return;
+
+      let r;
+      try{
+        r = await fetch(API.anular(id), {method:'PATCH'});
+      }catch(_){
+        swalMsg('Error','No se pudo anular.','error'); return;
+      }
+      if(!r.ok){ swalMsg('Error','No se pudo anular.','error'); return; }
+
+      const j = await r.json();
+      toastOk(j.mensaje || 'Solicitud anulada');
+      cargar();
+    }
+
+    // Delegación
+    tbody.addEventListener('click', e=>{
+      const btn = e.target.closest('button'); if(!btn) return;
+      if(btn.dataset.det) verDetalles(btn.dataset.det);
+      if(btn.dataset.anular) anular(btn.dataset.anular);
+    });
+
+    $('#btnBuscar').onclick = cargar;
+
+    // init
+    cargar();
+
+    // Cerrar modal clic fuera
+    document.getElementById('mdDetalles')?.addEventListener('click', (e)=>{
+      if(e.target.id === 'mdDetalles') document.getElementById('mdDetalles').classList.remove('show');
+    });
+  </script>
+</body>
+</html>

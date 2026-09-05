@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Mis Horarios - Estudiante | SGIL</title>
+
+    <!-- Favicon (opcional para evitar WARN) -->
+    <link rel="icon" href="/favicon.ico">
+
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+    <!-- Tema global + rompe-caché -->
+    <link rel="stylesheet"
+          th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+          href="/css/admin.css"/>
+
+    <style>
+        /* Tarjeta de filtros */
+        .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px}
+
+        /* Tabla de horarios */
+        table.table-theme{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+        .table-theme th,.table-theme td{border-bottom:1px solid #eee;padding:10px;text-align:left}
+        .table-theme thead th{background:#F9FAF7;color:#334155;font-weight:600}
+        .slot{white-space:nowrap;font-weight:700;color:#047857}
+        .ok{background:#ECFDF5}
+        .materia{font-weight:700}
+        .lab,.jor{font-size:.9rem;color:#6b7280}
+
+        /* Botones con buen contraste */
+        .btn{
+            display:inline-flex;align-items:center;gap:8px;
+            border:1px solid #d1d5db;border-radius:10px;padding:8px 12px;
+            background:#fff;cursor:pointer;text-decoration:none;font-weight:600;color:#111;
+        }
+        .btn:hover{background:#f3f4f6}
+        .btn-green{background:#10B981;color:#fff;border:0}
+        .btn-green:hover{background:#059669}
+        .btn-secondary{background:#E5E7EB;color:#111;border:1px solid #D1D5DB}
+        .btn-secondary:hover{background:#D1D5DB}
+    </style>
+</head>
+<body>
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a class="nav-item" th:href="@{/dashboard/estudiante}"><i class="fas fa-home"></i> Inicio</a>
+        <a class="nav-item active" th:href="@{/estudiante/horarios}"><i class="fas fa-calendar-alt"></i> Mis horarios</a>
+        <!-- CORREGIDO: asistencia va al dashboard -->
+        <a class="nav-item" th:href="@{/dashboard/estudiante/asistencia}"><i class="fas fa-user-check"></i> Asistencia</a>
+        <a class="nav-item" th:href="@{/dashboard/estudiante/anuncios}"><i class="fas fa-bullhorn"></i> Anuncios</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('Consulta tus horarios y puedes imprimirlos.')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<!-- ===== Main ===== -->
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">ES</div>
+                <span id="userName">Estudiante</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/estudiante/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/estudiante/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-calendar-alt"></i> Mis Horarios</h1>
+
+        <!-- Botón Exportar PDF -->
+        <div class="card" style="display:flex; justify-content:flex-end; gap:12px; align-items:center">
+            <button class="btn btn-secondary" type="button" onclick="window.print()">
+                <i class="fas fa-file-pdf"></i><span>Exportar PDF</span>
+            </button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="card" style="padding:0;overflow:auto">
+            <table class="table-theme">
+                <thead>
+                <tr>
+                    <th>Franja</th>
+                    <th th:each="d : ${dias}" th:text="${d}">Día</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- OJO: acceso por propiedad, sin paréntesis -->
+                <tr th:each="fila : ${tabla.filas}">
+                    <td class="slot"
+                        th:text="|${#temporals.format(fila.inicio,'HH:mm')} - ${#temporals.format(fila.fin,'HH:mm')}|">
+                        07:00 - 08:00
+                    </td>
+
+                    <td th:each="d : ${dias}"
+                        th:with="c=${fila.celdas.get(d)}"
+                        th:classappend="${c != null and c.ocupado} ? ' ok'">
+                        <div class="materia" th:text="${c != null} ? ${c.texto}       : ''">Materia</div>
+                        <div class="lab"     th:text="${c != null} ? ${c.laboratorio} : ''">LAB-01</div>
+                        <div class="jor"     th:text="${c != null} ? ${c.jornada}     : ''">Matutina</div>
+                    </td>
+                </tr>
+
+                <tr th:if="${#lists.isEmpty(tabla.filas)}">
+                    <td colspan="7">No hay horarios registrados para este período.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<!-- Inyecta valores de sesión -->
+<script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+</script>
+
+<script>
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'ES';
+
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+
+    (function(){
+        const n = sessionStorage.getItem('nombreUsuario') || 'Estudiante';
+        userName.textContent = n;
+        userAvatar.textContent = ini(n);
+    })();
+
+    (function(){
+        const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+        if(rol && rol!=='estudiante'){ location.href='/login'; }
+    })();
+
+    logoutBtn?.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        try{ await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}
+        sessionStorage.clear(); location.href='/login';
+    });
+
+    function handleResize(){
+        if (window.innerWidth <= 768) { sidebar.classList.add('hidden'); mainContent.classList.add('expanded'); }
+        else { sidebar.classList.remove('hidden'); mainContent.classList.remove('expanded'); }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cambio de clave - Administrador</title>
+
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+
+  <style>
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    @media (max-width:900px){.form-grid{grid-template-columns:1fr}}
+    .field label{display:block;font-size:.9rem;color:#6b7280;margin-bottom:6px}
+    .field .pw-wrap{display:flex;align-items:center;gap:8px}
+    .field input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+    .icon-btn{border:1px solid #e5e7eb;background:#f8fafc;border-radius:10px;padding:9px 10px;cursor:pointer}
+    .rules{font-size:.9rem;color:#6b7280;margin-top:6px}
+    .err{color:#b91c1c}
+    .banner{padding:10px 12px;border-radius:10px;margin-bottom:10px}
+    .banner.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    .banner.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-desktop"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/admin}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+      <a class="nav-item active" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button" onclick="alert('Cambia aquí tu contraseña de acceso al sistema.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">AD</div>
+          <span id="userName">Administrador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+          <a class="dropdown-item logout" id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-key"></i> Cambio de clave</h1>
+
+      <div th:if="${ok}"   class="banner ok"  th:text="${ok}">Contraseña cambiada con éxito.</div>
+      <div th:if="${error}" class="banner err" th:text="${error}">Hubo un problema.</div>
+
+      <div class="card">
+        <form id="formClave" th:action="@{/dashboard/admin/cambio-clave}" method="post" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label>Clave actual</label>
+              <div class="pw-wrap">
+                <input id="pwd0" name="actual" type="password" autocomplete="current-password" required>
+                <button class="icon-btn" type="button" data-toggle="#pwd0" title="Mostrar/Ocultar"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Nueva contraseña</label>
+              <div class="pw-wrap">
+                <input id="pwd1" name="nueva" type="password" autocomplete="new-password" required>
+                <button class="icon-btn" type="button" data-toggle="#pwd1" title="Mostrar/Ocultar"><i class="fas fa-eye"></i></button>
+              </div>
+              <div class="rules">Mínimo 8 caracteres, al menos 1 mayúscula, 1 minúscula y 1 número.</div>
+            </div>
+
+            <div class="field">
+              <label>Repetir contraseña</label>
+              <div class="pw-wrap">
+                <input id="pwd2" name="repetir" type="password" autocomplete="new-password" required>
+                <button class="icon-btn" type="button" data-toggle="#pwd2" title="Mostrar/Ocultar"><i class="fas fa-eye"></i></button>
+              </div>
+              <div id="errMatch" class="err" style="display:none">Las contraseñas no coinciden.</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button id="btnSubmit" class="btn" type="submit" disabled>Guardar</button>
+            <span id="liveHint" class="muted">Completa los requisitos...</span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+    const menuToggle=document.getElementById('menuToggle'), sidebar=document.getElementById('sidebar'), mainContent=document.getElementById('mainContent');
+    const userInfo=document.getElementById('userInfo'), userDropdown=document.getElementById('userDropdown'), userName=document.getElementById('userName'), userAvatar=document.getElementById('userAvatar');
+    const logoutBtn=document.getElementById('logoutBtn');
+    const ini=n=>(n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'AD';
+    menuToggle?.addEventListener('click',()=>{sidebar.classList.toggle('hidden');mainContent.classList.toggle('expanded');});
+    userInfo?.addEventListener('click',(e)=>{e.stopPropagation();userDropdown.classList.toggle('show');});
+    document.addEventListener('click',(e)=>{if(!userDropdown.contains(e.target)&&!userInfo.contains(e.target))userDropdown.classList.remove('show');});
+    (function(){const n=sessionStorage.getItem('nombreUsuario')||'Administrador';userName.textContent=n;userAvatar.textContent=ini(n);})();
+    logoutBtn?.addEventListener('click',async (e)=>{e.preventDefault();try{await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){ }sessionStorage.clear();location.href='/login';});
+    function handleResize(){if(window.innerWidth<=768){sidebar.classList.add('hidden');mainContent.classList.add('expanded');}else{sidebar.classList.remove('hidden');mainContent.classList.remove('expanded');}}
+    handleResize();window.addEventListener('resize',handleResize);
+
+    document.querySelectorAll('[data-toggle]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const sel = btn.getAttribute('data-toggle');
+        const inp = document.querySelector(sel);
+        if(!inp) return;
+        inp.type = (inp.type === 'password') ? 'text' : 'password';
+        btn.querySelector('i').classList.toggle('fa-eye');
+        btn.querySelector('i').classList.toggle('fa-eye-slash');
+      });
+    });
+
+    const pwd0=document.getElementById('pwd0'), pwd1=document.getElementById('pwd1'), pwd2=document.getElementById('pwd2');
+    const errMatch=document.getElementById('errMatch'), btnSubmit=document.getElementById('btnSubmit'), liveHint=document.getElementById('liveHint'), form=document.getElementById('formClave');
+    function strongEnough(v){ if(!v||v.length<8) return false; if(!/[A-Z]/.test(v)) return false; if(!/[a-z]/.test(v)) return false; if(!/[0-9]/.test(v)) return false; return true; }
+    function validate(){
+      const sOk=strongEnough(pwd1.value); const match=(pwd1.value&&pwd2.value&&pwd1.value===pwd2.value);
+      errMatch.style.display = match ? 'none' : (pwd2.value ? 'block' : 'none');
+      const ready=!!pwd0.value && sOk && match;
+      btnSubmit.disabled=!ready;
+      liveHint.textContent=ready?'Listo para guardar.':(!pwd0.value?'Ingresa tu clave actual.':(!sOk?'Cumple los requisitos de seguridad.':'Las contraseñas deben coincidir.'));
+    }
+    [pwd0,pwd1,pwd2].forEach(el=>el.addEventListener('input',validate));
+    form.addEventListener('submit',(e)=>{validate(); if(btnSubmit.disabled) e.preventDefault();});
+  </script>
+</body>
+</html>

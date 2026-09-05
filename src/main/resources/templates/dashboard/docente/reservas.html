@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Mis Reservas (Docente)</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+
+    <style>
+        .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 18px;flex-wrap:wrap}
+        .toolbar .sp{flex:1 1 auto}
+        .hint{font-size:.9rem;color:#6b7280}
+        .table{width:100%;border-collapse:collapse}
+        .table th,.table td{padding:12px 10px;border-bottom:1px solid var(--border-light);text-align:left;vertical-align:top}
+        .table thead th{background:#F9FAF7;color:#334155;font-weight:600;position:sticky;top:0;z-index:2}
+        .actions .btn{margin-right:.4rem}
+        .badge{padding:.15rem .55rem;border-radius:999px;font-size:.8rem}
+        .b-pend{background:#fff3cd;color:#8a6d3b}
+        .b-rev{background:#e8f1ff;color:#1d4ed8}
+        .b-apr{background:#dff0d8;color:#166534}
+        .b-rec{background:#fde2e2;color:#b91c1c}
+        .b-exp{background:#f3f4f6;color:#4b5563}
+        .b-mix{background:#fef3c7;color:#92400e}
+        .chips{display:flex;flex-wrap:wrap;gap:6px}
+        .chip{display:inline-flex;align-items:center;gap:6px;padding:.25rem .5rem;border-radius:999px;border:1px solid #e5e7eb;background:#f8fafc;font-size:.8rem}
+        .chip .t{font-weight:600}
+        .chip .h{opacity:.8}
+        .prop-wrap{margin-top:6px}
+        .prop-label{display:inline-block;margin-right:8px;font-weight:600}
+        .prop-accepted{color:#065f46}
+        .prop-pending{color:#1d4ed8}
+
+        dialog{border:none;border-radius:14px;max-width:900px;width:96%;padding:0;box-shadow:0 10px 40px rgba(0,0,0,.25);margin:0;max-height:90vh;overflow:auto}
+        dialog::backdrop{background:rgba(0,0,0,.45)}
+        dialog header{padding:14px 18px;border-bottom:1px solid #eee;font-weight:600}
+        dialog form,dialog .content{padding:16px 18px}
+        dialog footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #eee}
+        dialog input, dialog select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+
+        /* grilla de horarios */
+        .grid-wrap{overflow:auto;border:1px solid #e5e7eb;border-radius:12px}
+        .sched{border-collapse:separate;border-spacing:0;width:100%}
+        .sched th,.sched td{border-bottom:1px solid #eee;border-right:1px solid #eee;padding:8px;vertical-align:top}
+        .sched thead th{background:#f5f7f9;position:sticky;top:0;z-index:2}
+        .sched th:first-child{background:#fafafa;position:sticky;left:0;z-index:3}
+        .slot{min-width:140px;min-height:64px;border-radius:10px;padding:6px;cursor:pointer}
+        .slot.empty{background:transparent;cursor:default}
+        .slot .t{font-size:.78rem;color:#64748b}
+        .slot .n{font-weight:600}
+        .slot.available{background:#f0fdf4;color:#166534}
+        .slot.available:hover{outline:2px solid #86efac}
+        .slot.selected{outline:3px solid #2563eb !important}
+        .slot.disabled{opacity:.45;pointer-events:none;outline:none !important;filter:grayscale(0.2)}
+    </style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/docente}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/docente/reservas}" class="nav-item active"><i class="fas fa-calendar-check"></i> Mis Reservas</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" id="helpBtn" type="button">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">DO</div>
+                <span id="userName">Docente</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-calendar-check"></i> Mis Reservas</h1>
+
+        <div class="announcements-section">
+            <div class="toolbar">
+                <button class="btn" id="btnNueva" type="button"><i class="fas fa-plus"></i> Nueva solicitud</button>
+                <span class="sp"></span>
+                <!-- NUEVO: Filtro de estado -->
+                <label>Estado
+                    <select id="fEstadoDoc">
+                        <option selected>Todos</option>
+                        <option>Pendiente</option>
+                        <option>Revisión</option>
+                        <option>Aprobada</option>
+                        <option>Rechazada</option>
+                        <option>Expirada</option>
+                    </select>
+                </label>
+                <button class="btn" id="btnRefrescarDoc" type="button"><i class="fas fa-rotate"></i> Refrescar</button>
+            </div>
+            <span class="hint">Solicitudes temporales para prácticas o evaluaciones.</span>
+        </div>
+
+        <!-- ==== TABLA AGRUPADA ==== -->
+        <div class="announcements-section" style="padding:0">
+            <div style="overflow:auto">
+                <table id="tabla" class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Materia</th>
+                        <th>Jornada</th>
+                        <th>Fecha</th><!-- NUEVO -->
+                        <th>Bloques (día / hora)</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ===== Modal Nueva solicitud ===== -->
+<dialog id="dlgNueva">
+    <header>Enviar nueva solicitud</header>
+    <form id="frmNueva" onsubmit="return false">
+        <label>Motivo
+            <input required name="motivo" id="inpMotivo" placeholder="Ej.: Evaluación parcial"/>
+        </label>
+
+        <!-- Grid: Jornada + Fecha de uso + Materia -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
+            <label>Jornada
+                <select id="selJornadaNew">
+                    <option value="Matutina" selected>Matutina</option>
+                    <option value="Vespertina">Vespertina</option>
+                </select>
+            </label>
+
+            <!-- NUEVO: Fecha de uso (sin sábados ni domingos) -->
+            <label>Fecha de uso
+                <input type="date" id="inpFechaUso" required/>
+                <small class="hint">No se permiten <b>sábados</b> ni <b>domingos</b>.</small>
+            </label>
+
+            <label>Materia
+                <select id="selMateriaNew" required>
+                    <option value="">Cargando…</option>
+                </select>
+            </label>
+        </div>
+
+        <input type="hidden" name="idHorario" id="idHorarioNewHidden"/>
+        <input type="hidden" name="tipoSolicitud" value="Temporal"/>
+
+        <div class="hint" style="margin-top:8px">Haz clic en uno o varios bloques disponibles para seleccionar los <b>horarios</b>.</div>
+
+        <div class="grid-wrap" style="margin-top:10px">
+            <table class="sched" id="schedTblNew">
+                <thead>
+                <tr><th style="width:110px">Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr>
+                </thead>
+                <tbody id="schedBodyNew">
+                <tr><td colspan="6" style="padding:20px;text-align:center">Cargando horarios…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p class="hint" style="margin-top:8px">Luego de enviar, un Administrador de Piso revisará tu solicitud. Esta es una <b>reserva temporal</b> para la fecha indicada.</p>
+    </form>
+    <footer>
+        <button type="button" class="btn" onclick="document.getElementById('dlgNueva').close()">Cancelar</button>
+        <button id="btnEnviarNueva" class="btn" disabled><i class="fas fa-paper-plane"></i> Enviar</button>
+    </footer>
+</dialog>
+
+<!-- ===== Modales genéricos: Aviso y Confirmación ===== -->
+<dialog id="dlgNotice">
+    <header>Mensaje</header>
+    <div class="content"><p id="noticeMsg" style="margin:0"></p></div>
+    <footer><button class="btn" id="noticeOk">OK</button></footer>
+</dialog>
+
+<dialog id="dlgConfirm">
+    <header>Confirmar acción</header>
+    <div class="content"><p id="confirmMsg" style="margin:0"></p></div>
+    <footer>
+        <button class="btn" id="confirmCancel">Cancelar</button>
+        <button class="btn" id="confirmOk"><i class="fas fa-check"></i> Aceptar</button>
+    </footer>
+</dialog>
+
+<script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+</script>
+
+<script>
+    // ===== header/sidebar =====
+    const menuToggle=document.getElementById('menuToggle'),sidebar=document.getElementById('sidebar'),mainContent=document.getElementById('mainContent');
+    const userInfo=document.getElementById('userInfo'),userDropdown=document.getElementById('userDropdown'),userName=document.getElementById('userName'),userAvatar=document.getElementById('userAvatar'),logoutBtn=document.getElementById('logoutBtn');
+    const helpBtn=document.getElementById('helpBtn');
+    const ini=n=>(n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'DO';
+    menuToggle?.addEventListener('click',()=>{sidebar.classList.toggle('hidden');mainContent.classList.toggle('expanded');});
+    userInfo?.addEventListener('click',(e)=>{e.stopPropagation();userDropdown.classList.toggle('show');});
+    document.addEventListener('click',(e)=>{if(!userDropdown.contains(e.target)&&!userInfo.contains(e.target))userDropdown.classList.remove('show');});
+    (function(){const n=sessionStorage.getItem('nombreUsuario')||'Docente';userName.textContent=n;userAvatar.textContent=ini(n);})();
+    logoutBtn?.addEventListener('click',async(e)=>{e.preventDefault();try{await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){}sessionStorage.clear();location.href='/login';});
+
+    // ===== Modales simples =====
+    const dlgNotice = document.getElementById('dlgNotice');
+    const noticeMsg = document.getElementById('noticeMsg');
+    const noticeOk  = document.getElementById('noticeOk');
+
+    const dlgConfirm = document.getElementById('dlgConfirm');
+    const confirmMsg = document.getElementById('confirmMsg');
+    const confirmOk  = document.getElementById('confirmOk');
+    const confirmCancel = document.getElementById('confirmCancel');
+
+    function uiNotice(message){
+        return new Promise(resolve=>{
+            noticeMsg.textContent = message || '';
+            const onClose = ()=>{ noticeOk.removeEventListener('click',onOk); dlgNotice.removeEventListener('close',onClose); resolve(); };
+            const onOk = ()=>{ dlgNotice.close(); };
+            noticeOk.addEventListener('click', onOk);
+            dlgNotice.addEventListener('close', onClose);
+            dlgNotice.showModal();
+        });
+    }
+
+    function uiConfirm(message){
+        return new Promise(resolve=>{
+            confirmMsg.textContent = message || '';
+            const clean = ()=>{
+                confirmOk.removeEventListener('click', okFn);
+                confirmCancel.removeEventListener('click', cancelFn);
+                dlgConfirm.removeEventListener('cancel', cancelFn);
+                dlgConfirm.removeEventListener('close', onClose);
+            };
+            const okFn = ()=>{ clean(); dlgConfirm.close(); resolve(true); };
+            const cancelFn = ()=>{ clean(); dlgConfirm.close(); resolve(false); };
+            const onClose = ()=>{ clean(); resolve(false); };
+            confirmOk.addEventListener('click', okFn);
+            confirmCancel.addEventListener('click', cancelFn);
+            dlgConfirm.addEventListener('cancel', cancelFn);
+            dlgConfirm.addEventListener('close', onClose);
+            dlgConfirm.showModal();
+        });
+    }
+
+    helpBtn?.addEventListener('click',()=>{
+        uiNotice('Crea y revisa tus solicitudes temporales. Si Administración te propone cambios, verás todas las horas propuestas. Si aceptas, se mostrará como "Nueva propuesta (aceptada)" hasta que el admin apruebe.');
+    });
+
+    (function(){
+        const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+        if(rol!=='docente'){
+            uiNotice('Acceso no autorizado').then(()=>location.href='/login');
+        }
+    })();
+
+    // ===== helpers =====
+    const fmtHora=(t)=>t?String(t).substring(0,5):'-';
+    const fmtFecha=(s)=>{
+        if(!s) return '-';
+        try{
+            const d=new Date(String(s).length<=10?`${s}T00:00:00`:s);
+            return d.toLocaleDateString();
+        }catch(_){return String(s);}
+    };
+    async function getJSON(url){const r=await fetch(`${url}${url.includes('?')?'&':'?'}_=${Date.now()}`,{credentials:'include'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+    const b = (cls,txt)=>`<span class="badge ${cls}">${txt}</span>`;
+    function badgeEstado(estado){
+        const e=(estado||'').toLowerCase();
+        if(e==='pendiente') return b('b-pend','Pendiente');
+        if(e==='revisión'||e==='revision') return b('b-rev','Revisión');
+        if(e==='aprobada') return b('b-apr','Aprobada');
+        if(e==='rechazada') return b('b-rec','Rechazada');
+        if(e==='expirada') return b('b-exp','Expirada');
+        if(e==='mixto') return b('b-mix','Mixto');
+        return `<span class="badge">${estado||'-'}</span>`;
+    }
+    const keyFrom = (ids)=>[...ids].map(Number).sort((a,b)=>a-b).join('_');
+
+    // ====== Agrupar (Materia + Jornada) y consolidar FECHA ======
+    function agruparSolicitudes(items){
+        const grupos = new Map();
+        for (const r of items){
+            const materia = (r.materia||'').trim();
+            const jornada = (r.jornada||'').trim();
+            const key = `AGR:${materia}|${jornada}`;
+            if (!grupos.has(key)){
+                grupos.set(key, {
+                    grupoId: key, materia, jornada,
+                    estados: new Set(), bloques: [], ids: [],
+                    fechas: new Set() // NUEVO
+                });
+            }
+            const g = grupos.get(key);
+            g.ids.push(r.idSolicitud);
+            g.estados.add((r.estado||'').trim());
+            g.bloques.push({dia:r.diaSemana, ini:r.horaInicio, fin:r.horaFin});
+
+            // NUEVO: tratar de leer fecha desde el item (preferencia: fechaUso -> fechaSolicitud)
+            const f = r.fechaUso || r.fechaSolicitud || r.fecha || null;
+            if (f) g.fechas.add(String(f).slice(0,10));
+        }
+
+        const ordenDias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+        return [...grupos.values()].map(g=>{
+            g.bloques.sort((a,b)=>{
+                const ia=ordenDias.indexOf(a.dia), ib=ordenDias.indexOf(b.dia);
+                if (ia!==ib) return ia-ib;
+                return String(a.ini).localeCompare(String(b.ini));
+            });
+            g.estado = (g.estados.size===1) ? [...g.estados][0] : 'Mixto';
+            // NUEVO: fecha consolidada (si hay una sola igual para todo el grupo)
+            g.fecha = (g.fechas.size===1) ? [...g.fechas][0] : (g.fechas.size>1 ? 'VARIAS' : null);
+            delete g.estados; delete g.fechas;
+            return g;
+        });
+    }
+
+    // === Obtener TODAS las propuestas del grupo (una por cada solicitud del grupo)
+    async function obtenerPropuestasGrupo(ids){
+        const results = await Promise.all(ids.map(async (id)=>{
+            try { return await getJSON(`/api/docentes/solicitudes/${id}/propuesta`); }
+            catch(_){ return null; }
+        }));
+        const list = results.filter(Boolean);
+        if(list.length===0) return null;
+
+        const H = s => String(s||'').slice(0,5);
+        const ordenDias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+        const allLabs = Array.from(new Set(list.map(p=>p.laboratorio)));
+        const sameLab = (allLabs.length===1) ? allLabs[0] : null;
+
+        const items = list.map(p=>({
+            dia: p.diaSemana,
+            ini: H(p.horaInicio),
+            fin: H(p.horaFin),
+            lab: p.laboratorio
+        })).sort((a,b)=>{
+            const ia=ordenDias.indexOf(a.dia), ib=ordenDias.indexOf(b.dia);
+            if (ia!==ib) return ia-ib;
+            return String(a.ini).localeCompare(String(b.ini));
+        });
+
+        return { sameLab, items };
+    }
+
+    // ===== listado (AGRUPADO + propuestas múltiples + FECHA) =====
+    async function cargar(){
+        const tb=document.querySelector('#tabla tbody');
+        const filtro = document.getElementById('fEstadoDoc').value || 'Todos';
+        tb.innerHTML='<tr><td colspan="7">Cargando...</td></tr>';
+        try{
+            const data=await getJSON('/api/docentes/solicitudes');
+            let rows = Array.isArray(data) ? data : [];
+
+            // Filtrado por estado (cliente)
+            if (filtro && filtro !== 'Todos'){
+                rows = rows.filter(r => String(r.estado||'').toLowerCase() === filtro.toLowerCase());
+            }
+
+            if(rows.length===0){
+                tb.innerHTML='<tr><td colspan="7">No hay solicitudes con el filtro seleccionado.</td></tr>';return;
+            }
+            const grupos = agruparSolicitudes(rows);
+
+            const filas = await Promise.all(grupos.map(async (g,i)=>{
+                const e = (g.estado||'').toLowerCase();
+                let propuestaHtml = '';
+                if (['revisión','revision','pendiente'].includes(e)) {
+                    const prop = await obtenerPropuestasGrupo(g.ids);
+                    if (prop){
+                        const labelClass = (e==='pendiente') ? 'prop-label prop-accepted' : 'prop-label prop-pending';
+                        const labelText  = (e==='pendiente') ? 'Nueva propuesta (aceptada)' : 'Propuesta';
+                        const chips = prop.items.map(x=>{
+                            const labTxt = prop.sameLab ? '' : `<span class="t">${x.lab}</span> `;
+                            return `<span class="chip">${labTxt}<span class="t">${x.dia}</span> <span class="h">${x.ini}–${x.fin}</span></span>`;
+                        }).join(' ');
+                        const headLab = prop.sameLab ? `<span class="chip" style="background:#eef2ff;border-color:#e0e7ff"><span class="t">${prop.sameLab}</span></span> ` : '';
+                        propuestaHtml = `
+                          <div class="prop-wrap">
+                            <span class="${labelClass}">${labelText}:</span>
+                            ${headLab}<span class="chips">${chips}</span>
+                          </div>`;
+                    }
+                }
+
+                const chips = g.bloques.map(b=>`
+                    <span class="chip"><span class="t">${b.dia}</span><span class="h">${fmtHora(b.ini)}–${fmtHora(b.fin)}</span></span>
+                `).join(' ');
+
+                const gkey = keyFrom(g.ids);
+                const fechaTxt = g.fecha === 'VARIAS' ? 'Varias' : fmtFecha(g.fecha);
+
+                return `
+                  <tr data-gkey="${gkey}">
+                    <td>${i+1}</td>
+                    <td>${g.materia||'-'} ${propuestaHtml}</td>
+                    <td>${g.jornada||'-'}</td>
+                    <td>${fechaTxt}</td>
+                    <td><div class="chips">${chips}</div></td>
+                    <td class="td-estado" data-gkey="${gkey}">${badgeEstado(g.estado)}</td>
+                    <td class="actions td-acciones" data-gkey="${gkey}">${accionesGrupo(g)}</td>
+                  </tr>
+                `;
+            }));
+
+            tb.innerHTML = filas.join('');
+        }catch(err){
+            tb.innerHTML=`<tr><td colspan="7">Error al cargar</td></tr>`;
+            uiNotice('Error al cargar: '+err.message);
+        }
+    }
+
+    // Eventos de toolbar (docente)
+    document.getElementById('btnRefrescarDoc')?.addEventListener('click', cargar);
+    document.getElementById('fEstadoDoc')?.addEventListener('change', cargar);
+
+    // Acciones por GRUPO
+    function accionesGrupo(g){
+        const e = (g.estado||'').toLowerCase();
+        const puede = (e==='revisión'||e==='revision');
+        if (!puede) return `<span class="hint">—</span>`;
+        const gkey = keyFrom(g.ids);
+        return `
+          <button class="btn" data-gkey="${gkey}" onclick='aceptarGrupo(${JSON.stringify(g.ids)})'><i class="fas fa-check"></i> Aceptar propuesta</button>
+          <button class="logout" data-gkey="${gkey}" style="padding:10px 14px;border-radius:12px" onclick='rechazarGrupo(${JSON.stringify(g.ids)})'><i class="fas fa-times"></i> Rechazar</button>
+        `;
+    }
+
+    async function procesarSecuencial(ids, fn){
+        for (const id of ids){
+            const ok = await fn(id);
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    function pintarEstadoGrupo(gkey, nuevoEstado){
+        const estadoTd = document.querySelector(`.td-estado[data-gkey="${gkey}"]`);
+        if (estadoTd){ estadoTd.innerHTML = badgeEstado(nuevoEstado); }
+        const accionesTd = document.querySelector(`.td-acciones[data-gkey="${gkey}"]`);
+        if (accionesTd){
+            accionesTd.innerHTML = `<span class="hint">—</span>`;
+        }
+        document.querySelectorAll(`tr[data-gkey="${gkey}"] .prop-label`).forEach(el=>{
+            el.textContent = 'Nueva propuesta (aceptada):';
+            el.classList.remove('prop-pending'); el.classList.add('prop-accepted');
+        });
+    }
+
+    async function aceptarGrupo(ids){
+        const ok = await uiConfirm(`¿Aceptar la propuesta para ${ids.length} bloque(s)?`);
+        if(!ok) return;
+
+        const gkey = keyFrom(ids);
+        const exito = await procesarSecuencial(ids, async (id)=>{
+            const res=await fetch(`/api/docentes/solicitudes/${id}/aceptar-propuesta`,{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                credentials:'include'
+            });
+            return res.ok;
+        });
+
+        if (exito){
+            pintarEstadoGrupo(gkey, 'Pendiente');
+            await cargar();
+            await uiNotice('Propuesta aceptada. Quedará pendiente hasta la aprobación del administrador.');
+        }else{
+            await uiNotice('No se pudo completar la operación.');
+        }
+    }
+
+    async function rechazarGrupo(ids){
+        const ok = await uiConfirm(`¿Rechazar la propuesta para ${ids.length} bloque(s)?`);
+        if(!ok) return;
+
+        const gkey = keyFrom(ids);
+        const exito = await procesarSecuencial(ids, async (id)=>{
+            const res=await fetch(`/api/docentes/solicitudes/${id}/rechazar-propuesta`,{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                credentials:'include'
+            });
+            return res.ok;
+        });
+
+        if (exito){
+            pintarEstadoGrupo(gkey, 'Rechazada');
+            await cargar();
+            await uiNotice('Propuesta rechazada.');
+        }else{
+            await uiNotice('No se pudo completar la operación.');
+        }
+    }
+
+    // ===== Nueva solicitud (grilla con multiselección y límite) =====
+    const dlgNueva   = document.getElementById('dlgNueva');
+    const selJornadaNew=document.getElementById('selJornadaNew');
+    const selMateriaNew=document.getElementById('selMateriaNew');
+    const inpMotivo=document.getElementById('inpMotivo');
+    const inpFechaUso=document.getElementById('inpFechaUso'); // NUEVO
+    const schedBodyNew=document.getElementById('schedBodyNew');
+    const idHorarioNewHidden=document.getElementById('idHorarioNewHidden');
+    const btnEnviarNueva=document.getElementById('btnEnviarNueva');
+
+    const MAX_SELECTED = 10;
+    const selectedIds = new Set();
+
+    function hoyISO(){
+        const d=new Date();
+        const m=String(d.getMonth()+1).padStart(2,'0');
+        const dd=String(d.getDate()).padStart(2,'0');
+        return `${d.getFullYear()}-${m}-${dd}`;
+    }
+    function isWeekend(str){
+        if(!str) return false;
+        const d = new Date(str+'T00:00:00');
+        const w = d.getDay(); // 0=Dom, 6=Sab
+        return (w===0 || w===6);
+    }
+    function nextMonday(str){
+        // retorna la próxima fecha hábil (lunes) si str cae en Sab/Dom
+        let d = str ? new Date(str+'T00:00:00') : new Date();
+        while([0,6].includes(d.getDay())){
+            d.setDate(d.getDate()+1);
+        }
+        const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${dd}`;
+    }
+
+    async function cargarMateriasDocente(){
+        selMateriaNew.innerHTML = `<option value="">Cargando…</option>`;
+        try{
+            const list = await getJSON('/api/docentes/materias-asignadas');
+            if(!Array.isArray(list) || list.length===0){
+                selMateriaNew.innerHTML = `<option value="">(No tienes materias asignadas)</option>`;
+                return;
+            }
+            selMateriaNew.innerHTML = `<option value="">— Selecciona —</option>` +
+                list.map(o=>`<option value="${o.id}">${o.label}</option>`).join('');
+        }catch(e){
+            selMateriaNew.innerHTML = `<option value="">Error al cargar</option>`;
+            console.error(e);
+        }
+    }
+
+    const btnNueva = document.getElementById('btnNueva');
+    btnNueva?.addEventListener('click', ()=>{
+        selectedIds.clear();
+        idHorarioNewHidden.value='';
+        inpMotivo.value='';
+
+        // Inicializa fecha: hoy (si es fin de semana, ajusta a lunes)
+        let base = hoyISO();
+        if (isWeekend(base)) base = nextMonday(base);
+        inpFechaUso.value = base;
+        inpFechaUso.min   = hoyISO();
+
+        cargarMateriasDocente();
+        updateEnviarState();
+        cargarGrillaNueva(selJornadaNew.value).catch(err=>{
+            schedBodyNew.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center">Error al cargar horarios</td></tr>`;
+            uiNotice('Error al cargar horarios: '+err.message);
+        });
+        dlgNueva.showModal();
+    });
+
+    // Validación: no permitir sábados ni domingos
+    inpFechaUso?.addEventListener('change', async ()=>{
+        const v = (inpFechaUso.value||'').trim();
+        if (!v) return;
+        if (isWeekend(v)){
+            const nuevo = nextMonday(v);
+            await uiNotice('No se permiten reservas en sábados o domingos.\nSe ajustó la fecha al siguiente día hábil.');
+            inpFechaUso.value = nuevo;
+        }
+    });
+
+    function updateEnviarState(){
+        btnEnviarNueva.disabled = selectedIds.size === 0;
+        btnEnviarNueva.innerHTML = selectedIds.size
+            ? `<i class="fas fa-paper-plane"></i> Enviar (${selectedIds.size}/${MAX_SELECTED})`
+            : `<i class="fas fa-paper-plane"></i> Enviar`;
+        const reach = selectedIds.size >= MAX_SELECTED;
+        schedBodyNew.querySelectorAll('.slot.available').forEach(el=>{
+            const id = Number(el.dataset.id);
+            if (!selectedIds.has(id)) el.classList.toggle('disabled', reach);
+        });
+    }
+
+    selJornadaNew.addEventListener('change', ()=>{
+        selectedIds.clear();
+        idHorarioNewHidden.value='';
+        updateEnviarState();
+        cargarGrillaNueva(selJornadaNew.value).catch(err=>{
+            schedBodyNew.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center">Error al cargar horarios</td></tr>`;
+            uiNotice('Error al cargar horarios: '+err.message);
+        });
+    });
+
+    async function cargarGrillaNueva(jornada){
+        schedBodyNew.innerHTML=`<tr><td colspan="6" style="padding:20px;text-align:center">Cargando horarios…</td></tr>`;
+        const data=await getJSON(`/api/docentes/horarios?jornada=${encodeURIComponent(jornada)}`);
+        if(!Array.isArray(data)||data.length===0){
+            schedBodyNew.innerHTML=`<tr><td colspan="6" style="padding:20px;text-align:center">No hay bloques definidos.</td></tr>`;return;
+        }
+        const H=s=>String(s||'').slice(0,5),dias=['Lunes','Martes','Miércoles','Jueves','Viernes'];
+        const horas=[...new Set(data.map(h=>H(h.horaInicio)))].sort();
+        const find=(d,h)=>data.find(x=>x.diaSemana===d && H(x.horaInicio)===h);
+
+        schedBodyNew.innerHTML=horas.map(hr=>`
+        <tr>
+          <th>${hr}</th>
+          ${dias.map(d=>{
+            const it=find(d,hr);
+            if(!it) return `<td><div class="slot empty"></div></td>`;
+            const selClass = selectedIds.has(Number(it.id)) ? ' selected' : '';
+            return `<td><div class="slot available${selClass}" data-id="${it.id}">
+                      <div class="n">${d}</div><div class="t">${H(it.horaInicio)}–${H(it.horaFin)}</div>
+                    </div></td>`;
+        }).join('')}
+        </tr>`).join('');
+
+        updateEnviarState();
+
+        schedBodyNew.querySelectorAll('.slot.available').forEach(el=>{
+            el.addEventListener('click', async ()=>{
+                const id = Number(el.dataset.id);
+                const adding = !selectedIds.has(id);
+                if (adding && selectedIds.size >= MAX_SELECTED){
+                    await uiNotice(`Máximo ${MAX_SELECTED} horarios por solicitud.`);
+                    return;
+                }
+                if (adding) { selectedIds.add(id); el.classList.add('selected'); }
+                else { selectedIds.delete(id); el.classList.remove('selected'); }
+                idHorarioNewHidden.value = [...selectedIds].join(',');
+                updateEnviarState();
+            });
+        });
+    }
+
+    document.getElementById('btnEnviarNueva')?.addEventListener('click', async ()=>{
+        const ids = [...selectedIds];
+        const idMateria = Number(selMateriaNew.value||'');
+        const motivo = (inpMotivo.value||'').trim();
+        const fecha = (inpFechaUso.value||'').trim();     // NUEVO
+        const tipoSolicitud = 'Temporal';
+
+        if(!ids.length){await uiNotice('Selecciona al menos un horario.');return;}
+        if(!idMateria){await uiNotice('Selecciona la materia.');return;}
+        if(!motivo){await uiNotice('El motivo es requerido.');return;}
+        if(!fecha){await uiNotice('Selecciona la fecha de uso.');return;}
+        if(isWeekend(fecha)){
+            await uiNotice('No se permiten reservas en sábados o domingos.');
+            return;
+        }
+
+        btnEnviarNueva.disabled = true;
+        const originalText = btnEnviarNueva.innerHTML;
+
+        try{
+            for (let i=0;i<ids.length;i++){
+                const idHorario = ids[i];
+                btnEnviarNueva.innerHTML = `<i class="fas fa-paper-plane"></i> Enviando (${i+1}/${ids.length})...`;
+                const payload = {
+                    idHorario,
+                    idMateria,
+                    motivo,
+                    tipoSolicitud,
+                    fechaUso: fecha  // <-- CLAVE: el DTO espera 'fechaUso' (YYYY-MM-DD)
+                };
+                const res = await fetch('/api/docentes/solicitudes',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    credentials:'include',
+                    body:JSON.stringify(payload)
+                });
+                if(!res.ok){
+                    const txt = await res.text().catch(()=>'' );
+                    throw new Error(`Fallo en horario ${idHorario} (HTTP ${res.status}) ${txt?'- '+txt:''}`);
+                }
+            }
+            dlgNueva.close();
+            document.getElementById('frmNueva').reset();
+            selectedIds.clear();
+            updateEnviarState();
+            await cargar();
+            await uiNotice('Solicitud enviada correctamente.');
+        }catch(err){
+            await uiNotice('Error al enviar: '+err.message);
+        }finally{
+            btnEnviarNueva.disabled = false;
+            btnEnviarNueva.innerHTML = originalText;
+        }
+    });
+
+    function handleResize(){if(window.innerWidth<=768){sidebar.classList.add('hidden');mainContent.classList.add('expanded');}else{sidebar.classList.remove('hidden');mainContent.classList.remove('expanded');}}
+    handleResize();window.addEventListener('resize',handleResize);
+    cargar();
+</script>
+</body>
+</html>

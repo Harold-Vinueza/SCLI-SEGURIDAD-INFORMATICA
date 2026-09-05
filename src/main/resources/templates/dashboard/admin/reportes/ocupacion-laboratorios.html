@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Ocupación de Laboratorios</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css"/>
+
+    <style>
+        .table{width:100%;border-collapse:collapse}
+        .table th,.table td{padding:10px;border-bottom:1px solid var(--border-light);text-align:left}
+        .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+        .input{padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+    </style>
+</head>
+<body>
+<!-- Sidebar (igual que en reportes-freddy) -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-desktop"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a th:href="@{/dashboard/admin}" class="nav-item"><i class="fas fa-home"></i> Inicio</a>
+        <a th:href="@{/dashboard/admin/reportes}" class="nav-item active"><i class="fas fa-chart-bar"></i> Reportes </a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('Consulta la ocupación por laboratorio y franja horaria.')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button"><i class="fas fa-bars"></i></button>
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button">
+                <div class="user-avatar" id="userAvatar">AD</div>
+                <span id="userName">Administrador</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+                <a class="dropdown-item" th:href="@{/dashboard/admin/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" th:href="@{/dashboard/admin/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-desktop"></i> Ocupación de Laboratorios</h1>
+
+        <div class="announcements-section">
+            Revisa la distribución de uso por laboratorio y franja horaria.
+        </div>
+
+        <!-- Filtros simples (extiende cuando tengas params en el API) -->
+        <div class="announcements-section">
+            <div class="filters">
+                <input id="q" class="input" type="text" placeholder="Buscar...">
+                <button id="btnBuscar" class="btn" type="button"><i class="fas fa-search"></i> Buscar</button>
+                <button id="btnExport" class="btn" type="button"><i class="fas fa-file-export"></i> Exportar CSV</button>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="announcements-section" id="contenedorTabla" style="padding:0"></div>
+    </section>
+</main>
+
+<script>
+    // Interacciones comunes mínimas
+    const menuToggle=document.getElementById('menuToggle'), sidebar=document.getElementById('sidebar'), mainContent=document.getElementById('mainContent');
+    menuToggle?.addEventListener('click',()=>{sidebar.classList.toggle('hidden');mainContent.classList.toggle('expanded');});
+
+    const API = '/api/reportes-freddy/ocupacion-laboratorios';
+
+    function buildTable(data){
+        const cont = document.getElementById('contenedorTabla');
+        if(!data || data.length===0){
+            cont.innerHTML = '<div style="padding:14px;color:#6b7280">Sin datos.</div>'; return;
+        }
+        const cols = Object.keys(data[0]);
+        const thead = '<thead><tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead>';
+        const tbody = '<tbody>' + data.map(r=>(
+            '<tr>'+cols.map(c=>`<td>${r[c]??''}</td>`).join('')+'</tr>'
+        )).join('') + '</tbody>';
+        cont.innerHTML = `<div style="overflow:auto"><table class="table">${thead}${tbody}</table></div>`;
+    }
+
+    async function load(){
+        const r = await fetch(API, {credentials:'same-origin'});
+        if(!r.ok){ alert('Error al cargar datos'); return; }
+        const data = await r.json();
+        buildTable(data);
+    }
+
+    // Export CSV rápido
+    function exportCSV(){
+        const rows = Array.from(document.querySelectorAll('#contenedorTabla table tr'))
+            .map(tr => Array.from(tr.children).map(td => `"${String(td.textContent).replace(/"/g,'""')}"`).join(','))
+            .join('\n');
+        const blob = new Blob([rows], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'ocupacion-laboratorios.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById('btnBuscar').addEventListener('click', load);
+    document.getElementById('btnExport').addEventListener('click', exportCSV);
+
+    load();
+</script>
+</body>
+</html>

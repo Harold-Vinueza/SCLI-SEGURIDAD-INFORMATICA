@@ -1,0 +1,185 @@
+/* ============ Tema SGIL (paleta) ============
+   Verde oscuro:  #1B7505
+   Verde claro:   #629D0E
+   Tomate:        #E95F01
+   Amarillo osc.: #DBA112
+   Amarillo clr.: #DBB52F
+================================================ */
+
+/* Layout 70/30 pantalla completa */
+html, body{
+  height:100%;
+  min-height:100vh;
+  margin:0;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color:#2b2b2b;
+}
+
+.login-layout{
+  display:grid;
+  grid-template-columns: 70% 30%;
+  grid-template-rows: 100vh;
+  width:100%;
+  height:100%;
+}
+
+/* ====== HERO (70%) con carrusel ====== */
+.hero{
+  position:relative;
+  overflow:hidden;
+  background:#0d3a02; /* fallback */
+}
+
+.slides{
+  position:absolute; inset:0;
+}
+
+.slide{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  opacity:0;
+  transform: scale(1.03);
+  transition: opacity .9s ease, transform 1.2s ease;
+}
+.slide.active{
+  opacity:1;
+  transform: scale(1);
+}
+
+/* Degradado para legibilidad del título a la izquierda */
+.hero-gradient{
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, rgba(27,117,5,.75) 0%, rgba(27,117,5,.35) 40%, rgba(0,0,0,0) 65%);
+  pointer-events:none;
+}
+
+/* Título del laboratorio: centrado vertical, pegado a la izquierda */
+.lab-title{
+  position:absolute;
+  left:48px; top:50%;
+  transform: translateY(-50%);
+  font-size: clamp(22px, 3.2vw, 44px);
+  font-weight: 900;
+  letter-spacing: .5px;
+  color:#fff;
+  text-shadow: 0 4px 18px rgba(0,0,0,.35);
+  z-index:2;
+  border-left: 6px solid #DBB52F;
+  padding-left:14px;
+}
+
+/* ====== PANEL LOGIN (30%) ====== */
+.login-panel{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(180deg, #1B7505 0%, #629D0E 100%);
+  padding: 24px;
+}
+
+.login-card{
+  width:min(92%, 380px);
+  background:#ffffff;
+  border:1px solid #DBB52F;
+  border-radius:16px;
+  padding:22px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+}
+
+.logo-top{
+  display:flex; justify-content:center; margin-bottom:8px;
+}
+.logo-top img{ height:64px; width:auto; border-radius:12px; }
+
+.login-title{
+  text-align:center; font-weight:800; margin:6px 0 16px; color:#1B7505; position:relative;
+}
+.login-title::after{
+  content:""; display:block; width:60%; height:3px; background:#DBB52F; margin:10px auto 0; border-radius:2px;
+}
+
+/* ====== Formulario ====== */
+.form-field{ margin:16px 0; position:relative; }
+.form-label{ display:block; font-size:13px; color:#5a5a5a; margin-bottom:6px; }
+
+.form-input{
+  width:88%;
+  border:none;
+  border-bottom:2px solid #e6e6e6;
+  padding:12px 56px 10px 4px;
+  font-size:15px;
+  outline:none;
+  background:transparent;
+  transition:border-color .2s, box-shadow .2s;
+}
+.form-input:focus{
+  border-bottom-color:#629D0E;
+  box-shadow: 0 1px 0 1px #DBB52F inset;
+}
+
+/* Mostrar/Ocultar */
+.toggle-password{
+  position:absolute; right:0; bottom:6px;
+  background:transparent; border:none; padding:4px 0 0 8px;
+  font-size:14px; font-weight:700;
+  color:#1B7505; cursor:pointer; user-select:none;
+}
+
+.caps-msg{ color:#E95F01; font-size:12px; margin-top:6px; display:none; }
+
+.helper-row{
+  display:flex; justify-content:space-between; align-items:center;
+  margin:6px 0 12px; font-size:13px;
+}
+
+.link{
+  color:#1B7505; text-decoration:none; font-weight:700;
+}
+.link:hover{ color:#E95F01; text-decoration:underline; }
+
+/* Botón principal */
+.btn-login{
+  width:100%;
+  border:none; border-radius:12px;
+  padding:12px 14px; font-weight:800; cursor:pointer;
+  background: linear-gradient(90deg, #E95F01, #DBA112); /* tomate -> amarillo oscuro */
+  color:#fff;
+  transition: filter .2s, transform .02s, opacity .2s, box-shadow .2s;
+  box-shadow: 0 6px 18px rgba(233,95,1,.28);
+}
+.btn-login:hover{ filter:brightness(1.05); }
+.btn-login:active{ transform:scale(.995); }
+.btn-login[disabled]{ opacity:.55; cursor:not-allowed; box-shadow:none; }
+
+.register-line{ text-align:center; margin-top:12px; font-size:13px; }
+.error-msg{ color:#E95F01; font-size:13px; margin-top:10px; text-align:center; min-height:18px; }
+
+.spinner{
+  display:inline-block; width:16px; height:16px;
+  border:2px solid #fff; border-right-color:transparent;
+  border-radius:50%; margin-right:8px; animation:spin .7s linear infinite; vertical-align:-3px;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* ====== Responsive ====== */
+@media (max-width: 1024px){
+  .login-layout{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    height:auto; min-height:100vh;
+  }
+  /* Orden: primero login, luego hero */
+  .login-panel{ order:1; min-height: 52vh; }
+  .hero{ order:2; height: 48vh; }
+  .lab-title{ left:24px; }
+}
+
+@media (max-width: 480px){
+  .lab-title{
+    left:18px;
+    border-left-width:4px;
+    padding-left:10px;
+  }
+  .login-card{ width:100%; }
+}

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestionar horarios (Coordinador) - SGIL</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <link rel="stylesheet"
+        th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+        href="/css/admin.css"/>
+
+  <style>
+    /* =================== Design tokens (suaves/profesionales) =================== */
+    :root{
+      --radius-outer: 14px;
+      --radius-inner: 10px;
+      --shadow-1: 0 8px 24px rgba(0,0,0,.06);
+      --shadow-2: 0 2px 8px rgba(0,0,0,.06);
+      --bg-surface: #ffffff;
+      --bg-subtle: #f7f8f9;
+      --bg-header: #f3f4f6;
+      --border: #e5e7eb;
+      --text-muted: #6b7280;
+
+      --chip-ok-bg: #ecfdf5;
+      --chip-ok-br: #a7f3d0;
+
+      --slot-ok-bg: #f1f8e9;
+      --slot-oc-bg: #fee2e2; /* rojo claro */
+      --slot-oc-br: #fecaca;
+      --slot-oc-fg: #991b1b;
+
+      --pill-bg: #e8f0fe;
+      --pill-br: #3b82f6;  /* azul lateral */
+    }
+
+    /* ===== Toolbar y básicos ===== */
+    .toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:8px 0 16px}
+    .toolbar .field{display:flex;flex-direction:column;gap:6px}
+    .toolbar select{padding:10px;border:1px solid var(--border);border-radius:10px;min-width:220px;background:#fff}
+
+    /* ===== Caja con sombra y bordes redondeados ===== */
+    .grid-wrap{
+      background:var(--bg-surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius-outer);
+      box-shadow:var(--shadow-1);
+      padding:14px;
+    }
+
+    /* ===== Contenedor scrollable para encabezados sticky ===== */
+    .table-scroller{
+      overflow:auto;               /* permite sticky header/col */
+      border-radius:calc(var(--radius-outer) - 2px);
+      background:var(--bg-surface);
+    }
+
+    /* ===== Tabla estable: columnas fijas, zebra suave ===== */
+    .horario{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+    .horario thead th, .horario td{
+      border-bottom:1px solid var(--border);
+      padding:12px 10px;
+      text-align:left;
+      vertical-align:top;
+      background:var(--bg-surface);
+    }
+    .horario thead th{
+      background:var(--bg-header);
+      font-weight:600;
+      position:sticky; top:0; z-index:2;   /* Encabezados flotantes */
+    }
+    /* Zebra muy suave por filas */
+    .horario tbody tr:nth-child(odd) td{ background:#fafafa; }
+    .horario tbody tr:nth-child(even) td{ background:#ffffff; }
+
+    /* Columna de horas resaltada + sticky */
+    .horario thead th:first-child,
+    .horario tbody td:first-child{
+      width:140px;
+      position:sticky; left:0; z-index:3;
+      background:linear-gradient(#f7fafc,#f7fafc);
+      font-weight:600;
+      color:#111827;
+      box-shadow: 2px 0 0 var(--border);   /* línea sutil separadora */
+    }
+
+    /* Altura fija por fila (no se deforma) */
+    .horario tbody tr{ height:78px; }   /* ajusta 70–88 según pref */
+
+    /* ===== Slots: tarjetas con scroll interno y estados ===== */
+    .slot{
+      height:100%;
+      min-height:44px;
+      max-height:100%;
+      overflow:auto;                 /* evita empujar la fila/columna */
+      display:flex;
+      align-items:flex-start;
+      border-radius:var(--radius-inner);
+      padding:8px;
+      cursor:pointer;
+      transition: box-shadow .2s ease, background .2s ease;
+    }
+    .slot.vacio{
+      color:var(--text-muted);
+      font-style:italic;
+      background:transparent;
+    }
+    .slot.asignado{
+      background:var(--slot-ok-bg);
+    }
+    .slot.asignado:hover{
+      box-shadow:inset 0 0 0 1px #a3d18b;
+    }
+    .slot.ocupado{
+      background:var(--slot-oc-bg);
+      border:1px dashed var(--slot-oc-br);
+      cursor:not-allowed;
+    }
+
+    /* ===== Píldoras/tarjetas de materia ===== */
+    .pills{ display:flex; flex-direction:column; gap:8px; width:100%; }
+    .pill{
+      position:relative;
+      display:flex; align-items:center; gap:8px;
+      max-width:100%;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      padding:8px 30px 8px 12px;  /* espacio para la x */
+      border-radius:999px;
+      background:var(--pill-bg);
+      box-shadow:var(--shadow-2);
+      box-sizing:border-box;
+      border-left:4px solid var(--pill-br); /* borde lateral azul */
+    }
+    .pill .x{
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      width:18px; height:18px; border:none; background:#fff; border-radius:50%;
+      line-height:16px; cursor:pointer; font-weight:700;
+    }
+
+    /* ===== Chips pequeños para estados ===== */
+    .chip{
+      display:inline-flex; gap:6px; align-items:center;
+      font-size:.9rem; padding:.35rem .6rem; border-radius:999px;
+      background:#eef2ff; color:#1f2937; border:1px solid #e5e7eb;
+    }
+    .chip.danger{
+      background:var(--slot-oc-bg);
+      color:var(--slot-oc-fg);
+      border:1px solid var(--slot-oc-br);
+      font-weight:600;
+    }
+
+    /* ===== Textos sutiles ===== */
+    .muted{ color:var(--text-muted); }
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+
+    /* ===== Modal ===== */
+    .modal{position:fixed;inset:0;display:none;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;z-index:1050}
+    .modal.show{display:flex}
+    .dialog{background:#fff;max-width:520px;width:100%;border-radius:14px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    .dialog h3{margin:0 0 8px 0}
+    .dialog .row{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+    .dialog select,.dialog input{padding:10px;border:1px solid #ddd;border-radius:10px}
+    .dialog .row.actions{justify-content:flex-end}
+    .btn.cancel{background:#efefef;color:#111}
+    .btn.cancel:hover{background:#e6e6e6}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-clipboard-check"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/coordinador}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item active" th:href="@{/coordinador/horarios}"><i class="fas fa-calendar-alt"></i> Gestionar horarios</a>
+      <a class="nav-item" th:href="@{/coordinador/solicitudes}"><i class="fas fa-file-alt"></i> Revisar solicitudes</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button"
+              onclick="alert('Asigna Materia/Docente por celda y envía la solicitud para revisión.')">
+        <i class="fas fa-question-circle"></i> Ayuda
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+          <div class="user-avatar" id="userAvatar">CO</div>
+          <span id="userName">Coordinador</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/coordinador}"><i class="fas fa-home"></i> Inicio</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/coordinador/horarios}"><i class="fas fa-calendar-alt"></i> Horarios</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/coordinador/solicitudes}"><i class="fas fa-file-alt"></i> Solicitudes</a>
+          <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-calendar-alt"></i> Gestionar horarios de carrera</h1>
+
+      <div class="announcements-section">
+        <div class="toolbar">
+          <div class="field">
+            <label>Jornada</label>
+            <select id="selJornada">
+              <option value="Matutina">Matutina</option>
+              <option value="Vespertina" selected>Vespertina</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Carrera</label>
+            <select id="selCarrera">
+              <option value="">— Seleccione —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Laboratorio</label>
+            <select id="selLab">
+              <option value="">— Seleccione —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="btnCargar" class="btn"><i class="fas fa-rotate"></i> Cargar grilla</button>
+          </div>
+
+          <div class="field" style="margin-left:auto">
+            <label>&nbsp;</label>
+            <button id="btnGuardar" class="btn"><i class="fas fa-paper-plane"></i> Guardar solicitud</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="announcements-section" style="padding:16px">
+        <section class="grid-wrap">
+          <div class="table-scroller">
+            <table class="horario" id="tblHorario">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyHorario"></tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <span class="muted">Haz clic en una celda para asignar <strong>Materia</strong> y opcionalmente <strong>Docente</strong>. Puedes añadir <u>varias</u> materias en la misma celda (sin repetir).</span>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal" id="modalAsign">
+    <div class="dialog">
+      <h3>Nueva asignación</h3>
+      <p id="slotInfo" class="muted">—</p>
+
+      <div class="row">
+        <label>Materia</label>
+        <select id="selMateria">
+          <option value="">— Seleccione materia —</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Docente <span class="muted">(opcional)</span></label>
+        <select id="selDocente" disabled>
+          <option value="">— Seleccione docente —</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Repetir (bloques contiguos hacia abajo)</label>
+        <input id="inpRepeat" type="number" min="1" max="6" value="1"/>
+        <small class="muted">Máx. 6 por materia (se valida).</small>
+      </div>
+
+      <div class="row">
+        <label><input type="checkbox" id="chkReplicarTodo"/> Replicar también lo ya agregado en esta celda</label>
+      </div>
+
+      <div class="row actions" style="gap:8px">
+        <button class="btn cancel" id="btnCancel" type="button">Cancelar</button>
+        <button class="btn" id="btnOk" type="button"><i class="fas fa-save"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sesión -->
+  <script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+  </script>
+
+  <script>
+    /* ===================== Helpers y layout ===================== */
+    function swalMsg(title='Mensaje', html='', icon='info'){ return Swal.fire({ icon, title, html, confirmButtonText:'Aceptar', showCloseButton:true, width:520 }); }
+    const Toast = Swal.mixin({ toast:true, position:'top-end', showConfirmButton:false, timer:3000, timerProgressBar:true });
+    const toastOk = m=>Toast.fire({icon:'success',title:m}), toastWarn = m=>Toast.fire({icon:'warning',title:m}), toastErr = m=>Toast.fire({icon:'error',title:m});
+
+    const menuToggle=document.getElementById('menuToggle'), sidebar=document.getElementById('sidebar'), mainContent=document.getElementById('mainContent');
+    const userInfo=document.getElementById('userInfo'), userDropdown=document.getElementById('userDropdown'), userName=document.getElementById('userName'), userAvatar=document.getElementById('userAvatar'), logoutBtn=document.getElementById('logoutBtn');
+    const ini=n=>(n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'CO';
+    (function(){const hb=document.querySelector('.help-btn');hb&&(hb.onclick=()=>{swalMsg('Ayuda','Selecciona laboratorio para ver ocupación por laboratorio. Puedes poner varias materias por celda y replicarlas.','info'); return false;});})();
+    menuToggle?.addEventListener('click', ()=>{ sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+    userInfo?.addEventListener('click', (e)=>{ e.stopPropagation(); userDropdown.classList.toggle('show'); });
+    document.addEventListener('click', (e)=>{ if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
+    (function(){ const n=sessionStorage.getItem('nombreUsuario')||'Coordinador'; userName.textContent=n; userAvatar.textContent=ini(n); })();
+    logoutBtn?.addEventListener('click', async (e)=>{ e.preventDefault(); try{await fetch('/logout',{method:'GET',credentials:'include'});}catch(_){ } sessionStorage.clear(); location.href='/login'; });
+    (function(){const rol=(sessionStorage.getItem('rol')||'').toLowerCase(); if(rol && rol!=='coordinador'){ swalMsg('Acceso no autorizado','Tu sesión no tiene permisos para esta vista.','error').then(()=>location.href='/login'); }})();
+
+    /* ===================== API ===================== */
+    const API = {
+      materias: '/api/coordinador/materias',
+      docentesPorMateria: '/api/coordinador/docentes-por-materia',
+      crearSolicitud: '/api/coordinador/solicitudes',
+      carreras: '/api/admin/carreras-mias',
+      labsPorCarrera: '/api/coordinador/labs-carrera?idCarrera=',
+      ocupacionPorLab: '/api/coordinador/ocupacion-lab?jornada={jor}&idLaboratorio={lab}',
+    };
+    const API_HORARIOS = '/api/horarios?jornada=';
+
+    /* ===================== Estado ===================== */
+    let HORARIOS = [];
+    const OCUPADOS = new Set();
+    const PENDIENTE = new Map();     // id_horario -> Array<{idMateria,idDocente,label}>
+
+    /* ===================== Utils ===================== */
+    const $ = s => document.querySelector(s);
+    const el = (t,props={}) => Object.assign(document.createElement(t),props);
+    const dkey = d => { const s=(d||'').toString().toLowerCase(); if (s.startsWith('lun')) return 'Lunes'; if (s.startsWith('mar')) return 'Martes'; if (s.startsWith('mié')||s.startsWith('mie')) return 'Miércoles'; if (s.startsWith('jue')) return 'Jueves'; if (s.startsWith('vie')) return 'Viernes'; return d; };
+    const horaTxt = (hi,hf)=>`${(hi||'').substring(0,5)}-${(hf||'').substring(0,5)}`;
+
+    function horasUsadas(idMateria){
+      let n=0;
+      PENDIENTE.forEach(arr=>{ arr.forEach(it=>{ if(it.idMateria===idMateria) n++; }); });
+      return n;
+    }
+
+    /* ===================== Catálogos ===================== */
+    async function loadCarreras(){
+      const sel = $('#selCarrera'); sel.innerHTML = '<option value="">— Seleccione —</option>';
+      try{ const r = await fetch(API.carreras); if(!r.ok) throw 0;
+        (await r.json()).forEach(x=>{ const id=x.id??x.id_carrera, nom=x.nombre??x.nombre_carrera??('Carrera '+id); sel.append(el('option',{value:id,textContent:nom})); });
+      }catch(_){ ['7|Ingeniería Software','3|Arquitectura','4|Economía Empresarial'].forEach(s=>{const [v,t]=s.split('|'); sel.append(el('option',{value:v,textContent:`[demo] ${t}`}));}); toastWarn('No se pudieron cargar tus carreras (demo).');}
+    }
+    async function loadMaterias(idCarrera){
+      const sel = $('#selMateria');
+      sel.innerHTML = '<option value="">— Seleccione materia —</option>';
+      $('#selDocente').innerHTML = '<option value="">— Seleccione docente —</option>'; $('#selDocente').disabled = true;
+      const url = idCarrera ? `${API.materias}?idCarrera=${idCarrera}` : API.materias;
+      const r = await fetch(url); if(!r.ok) return;
+      (await r.json()).forEach(m=>{ const id=m.id??m.id_materia; const label=(m.codigo??m.cod_materia??'')+' - '+(m.nombre??m.nombre_materia??''); sel.append(el('option',{value:id,textContent:label})); });
+    }
+    async function loadDocentes(idMateria){
+      const sel = $('#selDocente'); sel.innerHTML = '<option value="">— Seleccione docente —</option>'; sel.disabled = true;
+      if(!idMateria) return;
+      const r = await fetch(`${API.docentesPorMateria}?idMateria=${idMateria}`); if(!r.ok) return;
+      (await r.json()).forEach(d=>{ const id=d.id??d.id_docente; const label=d.label??(d.nombres_apellidos??('Docente '+id)); sel.append(el('option',{value:id,textContent:label})); });
+      sel.disabled = false;
+    }
+    async function loadHorarios(jornada){
+      HORARIOS = [];
+      const r = await fetch(API_HORARIOS + encodeURIComponent(jornada));
+      if(!r.ok){ swalMsg('Error','No se pudo cargar el horario.','error'); return; }
+      const data = await r.json();
+      HORARIOS = data.map(x=>({ id:x.id??x.id_horario, dia:dkey(x.diaSemana??x.dia_semana??x.dia??''), hi:x.horaInicio??x.hi??x.hora_inicio, hf:x.horaFin??x.hf??x.hora_fin, jornada:x.jornada }));
+    }
+    async function loadLabsByCarrera(){
+      const idCarrera = Number($('#selCarrera').value||''); $('#selLab').innerHTML = '<option value="">— Seleccione —</option>';
+      if(!idCarrera) return;
+      try{ const r = await fetch(API.labsPorCarrera + idCarrera); if(!r.ok) return;
+        (await r.json()).forEach(l=>{ const txt=(l.codigo||'LAB')+' — '+(l.nombre||''); $('#selLab').append(el('option',{value:l.id,textContent:(l.preferido?'★ ':'')+txt})); });
+      }catch(_){}
+    }
+    async function loadOcupacionPorLab(){
+      OCUPADOS.clear();
+      const jornada=$('#selJornada').value, idLab=Number($('#selLab').value||'');
+      if(!idLab) return;
+      try{ const url=API.ocupacionPorLab.replace('{jor}',encodeURIComponent(jornada)).replace('{lab}',idLab);
+        const r = await fetch(url); if(!r.ok) return;
+        (await r.json()).forEach(arr=>{ if(arr&&arr.length) OCUPADOS.add(Number(arr[0])); });
+      }catch(_){}
+    }
+
+    /* ===================== Render ===================== */
+    function renderVacio(div){ div.className='slot vacio'; div.innerHTML='vacío'; div.dataset.label=''; }
+    function renderOcupado(div,label='ocupado'){
+      div.className='slot ocupado';
+      div.innerHTML=`<span class="chip danger"><i class="fas fa-ban"></i> ${label}</span>`;
+    }
+    function renderAsignaciones(div, items){
+      div.className='slot asignado';
+      const wrap=el('div',{className:'pills'});
+      items.forEach(it=>{
+        const pill=el('span',{className:'pill', title: it.label});
+        pill.innerHTML=`<i class="fas fa-book"></i> ${it.label}<button class="x" title="Quitar" aria-label="Quitar">&times;</button>`;
+        pill.querySelector('.x').addEventListener('click',(e)=>{
+          e.stopPropagation();
+          const hid=parseInt(div.dataset.hid);
+          const arr=PENDIENTE.get(hid)||[];
+          const idx=arr.findIndex(x=>x.idMateria===it.idMateria && x.idDocente===it.idDocente);
+          if(idx>=0){ arr.splice(idx,1); PENDIENTE.set(hid,arr); }
+          if(arr.length===0) renderVacio(div); else renderAsignaciones(div,arr);
+        });
+        wrap.append(pill);
+      });
+      div.innerHTML=''; div.append(wrap);
+    }
+    async function limpiarGrilla(reload=true){
+  // 1) vaciamos el estado de pendientes
+  PENDIENTE.clear();
+
+  if (reload) {
+    // 2) recargamos ocupación del laboratorio seleccionado y repintamos
+    await loadOcupacionPorLab();   // usa selJornada + selLab actuales
+    renderGrid();
+    return;
+  }
+
+  // (fallback) si no queremos recargar, pasamos todos los slots a "vacío"
+  document.querySelectorAll('#tbodyHorario .slot').forEach(div=>{
+    // mantenemos los "ocupado" verdaderos (planificación)
+    if (div.classList.contains('ocupado')) return;
+    div.className = 'slot vacio';
+    div.textContent = 'vacío';
+    div.dataset.label = '';
+  });
+}
+    function renderGrid(){
+      const body=$('#tbodyHorario'); body.innerHTML='';
+      const rangos=[...new Set(HORARIOS.map(h=>horaTxt(h.hi,h.hf)))].sort();
+      const porClave=new Map(HORARIOS.map(h=>[`${horaTxt(h.hi,h.hf)}|${h.dia}`,h]));
+      rangos.forEach(rg=>{
+        const tr=el('tr'); tr.append(el('td',{textContent:rg}));
+        ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(d=>{
+          const h=porClave.get(`${rg}|${d}`); const td=el('td');
+          if(!h){ td.append(el('div',{className:'slot vacio',textContent:'vacío'})); }
+          else{
+            const div=el('div'); div.dataset.hid=h.id;
+            if(OCUPADOS.has(h.id)) renderOcupado(div,'ocupado');
+            else{
+              const items=PENDIENTE.get(h.id)||[];
+              if(items.length===0) renderVacio(div); else renderAsignaciones(div,items);
+              div.addEventListener('click', ()=>openModal(h,div,rg,d));
+            }
+            td.append(div);
+          }
+          tr.append(td);
+        });
+        body.append(tr);
+      });
+    }
+
+
+
+    /* ===================== Helpers slots contiguos ===================== */
+    function siguientesContiguos(slotInicial,n){
+      if(n<=1) return [slotInicial];
+      const dia=slotInicial.dia;
+      const orden=HORARIOS.filter(x=>x.dia===dia).sort((a,b)=>(a.hi>b.hi?1:-1));
+      const idx=orden.findIndex(x=>x.id===slotInicial.id);
+      const take=[];
+      for(let k=0;k<n;k++){
+        const s=orden[idx+k]; if(!s) break;
+        if(k>0){ const prev=orden[idx+k-1]; if((prev.hf||'') !== (s.hi||'')) break; }
+        take.push(s);
+      }
+      return take;
+    }
+
+    /* ===================== Modal ===================== */
+    let SLOT_ACT=null, DIV_ACT=null;
+    async function openModal(h,div,rg,dia){
+      SLOT_ACT=h; DIV_ACT=div; document.getElementById('slotInfo').textContent=`${dia} ${rg}`;
+      document.getElementById('modalAsign').classList.add('show');
+      const idCarrera=Number(document.getElementById('selCarrera').value||'');
+      await loadMaterias(idCarrera);
+      const pre=PENDIENTE.get(h.id)||[];
+      if(pre.length>0){
+        document.getElementById('selMateria').value=String(pre[0].idMateria);
+        await loadDocentes(pre[0].idMateria);
+        if(pre[0].idDocente) document.getElementById('selDocente').value=String(pre[0].idDocente);
+      }else{
+        document.getElementById('selDocente').innerHTML='<option value="">— Seleccione docente —</option>';
+        document.getElementById('selDocente').disabled=true;
+      }
+      document.getElementById('inpRepeat').value=1; document.getElementById('chkReplicarTodo').checked=false;
+    }
+    function closeModal(){ document.getElementById('modalAsign').classList.remove('show'); SLOT_ACT=null; DIV_ACT=null; }
+    document.getElementById('btnCancel').onclick=closeModal;
+    document.getElementById('selMateria').onchange=e=>loadDocentes(e.target.value);
+
+    function addToSlot(slotId, item){
+      const arr=PENDIENTE.get(slotId)||[];
+      if(!arr.some(x=>x.idMateria===item.idMateria && x.idDocente===item.idDocente)){
+        arr.push(item); PENDIENTE.set(slotId,arr);
+        return true;
+      }
+      return false;
+    }
+
+    document.getElementById('btnOk').onclick=()=>{
+      const idMateria=parseInt(document.getElementById('selMateria').value||''); if(!idMateria){ swalMsg('Falta completar','Selecciona una materia.','warning'); return; }
+      const idDocente=document.getElementById('selDocente').value ? parseInt(document.getElementById('selDocente').value) : null;
+      const labelSel=document.getElementById('selMateria').selectedOptions[0].text + (idDocente? ` (${document.getElementById('selDocente').selectedOptions[0].text})`:'');
+
+      const base = (PENDIENTE.get(SLOT_ACT.id)||[]).slice();
+      if(!base.some(x=>x.idMateria===idMateria && x.idDocente===idDocente)){
+        base.push({idMateria,idDocente,label:labelSel});
+      }
+
+      const nRep=Math.max(1, Math.min(6, parseInt(document.getElementById('inpRepeat').value||'1')));
+      const slots=siguientesContiguos(SLOT_ACT, nRep).filter(s=>!OCUPADOS.has(s.id));
+      if(slots.length<nRep) toastWarn('Algunos bloques no están disponibles o no son contiguos.');
+
+      const replicateAll = document.getElementById('chkReplicarTodo').checked;
+      const itemsParaReplicar = replicateAll ? base : [{idMateria,idDocente,label:labelSel}];
+
+      let cortadasPorLimite = 0;
+
+      const finalActual=[];
+      for(const it of base){
+        const usadas = horasUsadas(it.idMateria);
+        const yaEnActual = (PENDIENTE.get(SLOT_ACT.id)||[]).some(x=>x.idMateria===it.idMateria && x.idDocente===it.idDocente);
+        if(yaEnActual){ finalActual.push(it); continue; }
+        if(usadas >= 6){ cortadasPorLimite++; continue; }
+        finalActual.push(it);
+      }
+      if(finalActual.length>0){
+        PENDIENTE.set(SLOT_ACT.id, finalActual);
+        const div=document.querySelector(`.slot[data-hid="${SLOT_ACT.id}"]`);
+        renderAsignaciones(div, finalActual);
+      }
+
+      for(const s of slots.slice(1)){
+        for(const it of itemsParaReplicar){
+          if(horasUsadas(it.idMateria) >= 6){ cortadasPorLimite++; continue; }
+          if(addToSlot(s.id,it)){
+            const div=document.querySelector(`.slot[data-hid="${s.id}"]`);
+            renderAsignaciones(div, PENDIENTE.get(s.id));
+          }
+        }
+      }
+
+      if(cortadasPorLimite>0){
+        toastWarn('Se alcanzó el límite de 6 horas para alguna materia. Se omitieron algunas réplicas.');
+      }
+
+      closeModal();
+    };
+
+    /* ===================== Guardar ===================== */
+    // --- Reemplazo: guardarSolicitud ---
+      async function guardarSolicitud(){
+        const idCarrera = Number(document.getElementById('selCarrera').value || '');
+        const idLab     = Number(document.getElementById('selLab').value || '');
+        const jornada   = document.getElementById('selJornada').value;
+
+        if (!idCarrera){ swalMsg('Falta carrera','Selecciona la carrera.','warning'); return; }
+        if (!idLab){ swalMsg('Falta laboratorio','Selecciona el laboratorio.','warning'); return; }
+        if (PENDIENTE.size === 0){ swalMsg('Sin asignaciones','No hay celdas asignadas.','warning'); return; }
+
+        const celdas = [];
+        PENDIENTE.forEach((arr, idHorario) => {
+          arr.forEach(it => {
+            celdas.push({
+              idHorario: Number(idHorario),
+              idMateria: it.idMateria,
+              idDocente: it.idDocente ?? null,
+              idLaboratorio: idLab
+            });
+          });
+        });
+
+        const payload = { idCarrera, jornada, observaciones:'', celdas };
+
+        let r;
+        try{
+          r = await fetch(API.crearSolicitud, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }catch(_){
+          swalMsg('Error','No se pudo crear la solicitud.','error');
+          return;
+        }
+        if (!r.ok){
+          swalMsg('Error','No se pudo crear la solicitud.','error');
+          return;
+        }
+
+        const res = await r.json();
+
+        // Marca temporalmente como "ocupado" los slots rechazados por regla/ocupación
+        let rechazadas = 0;
+        res.items?.forEach(it => {
+          if (it.conflictivo){
+            rechazadas++;
+            const div = document.querySelector(`.slot[data-hid="${it.idHorario}"]`);
+            if (div) div.classList.add('ocupado');
+          }
+        });
+
+        await Swal.fire({
+          icon: rechazadas > 0 ? 'warning' : 'success',
+          title: 'Solicitud creada',
+          html: `<div style="text-align:left">
+                  <b>Solicitud #${res.idSolicitud}</b> creada.<br>
+                  Rechazadas por regla/ocupación: <b>${rechazadas}</b>
+                </div>`,
+          confirmButtonText: 'Aceptar',
+          showCloseButton: true,
+          width: 520
+        });
+
+        // Limpia selección de usuario y repinta la ocupación real del laboratorio
+        await limpiarGrilla(true);
+      }
+
+    /* ===================== Eventos ===================== */
+    document.getElementById('btnCargar').onclick = async ()=>{
+      PENDIENTE.clear(); OCUPADOS.clear();
+      await loadHorarios(document.getElementById('selJornada').value);
+      await loadLabsByCarrera();
+      await loadOcupacionPorLab();
+      renderGrid(); toastOk('Grilla cargada');
+    };
+    document.getElementById('btnGuardar').onclick = guardarSolicitud;
+
+    document.getElementById('selCarrera').addEventListener('change', async ()=>{
+      document.getElementById('selLab').innerHTML='<option value="">— Seleccione —</option>'; await loadLabsByCarrera();
+    });
+    document.getElementById('selJornada').addEventListener('change', async ()=>{
+      if(document.getElementById('selLab').value){ await loadOcupacionPorLab(); renderGrid(); }
+    });
+    document.getElementById('selLab').addEventListener('change', async ()=>{
+      await loadOcupacionPorLab(); renderGrid();
+    });
+
+    (async function init(){ await loadCarreras(); await loadHorarios(document.getElementById('selJornada').value); renderGrid(); })();
+
+    document.getElementById('modalAsign')?.addEventListener('click', (e)=>{ if(e.target.id === 'modalAsign') closeModal(); });
+
+    // Doble click = limpiar celda completa
+    document.getElementById('tbodyHorario').addEventListener('dblclick', (e)=>{
+      const div = e.target.closest('.slot.asignado'); if(!div) return;
+      const hid = parseInt(div.dataset.hid);
+      PENDIENTE.delete(hid); 
+      renderVacio(div);
+    });
+  </script>
+</body>
+</html>

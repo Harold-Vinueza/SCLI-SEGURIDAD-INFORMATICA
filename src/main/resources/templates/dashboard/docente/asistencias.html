@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Asistencias - SGIL</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css" />
+  <style>
+    .modules-grid{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
+    @media (max-width:1024px){.modules-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}}
+    @media (max-width:640px){.modules-grid{grid-template-columns:1fr}}
+    .card{display:flex;flex-direction:column;gap:8px;border:1px solid #e5e7eb;border-radius:14px;background:#fff;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .card .title{font-weight:700}
+    .card .muted{color:#6b7280;font-size:.9rem}
+    .card .actions{margin-top:6px;display:flex;gap:10px;align-items:center}
+    .btn-primary{background:#10b981;color:#fff;border:none;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .btn-primary:hover{filter:brightness(.95)}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/docente}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/reservas}"><i class="fas fa-file-alt"></i> Mis Reservas</a>
+     
+      <a class="nav-item active" th:href="@{/dashboard/docente/asistencias}"><i class="fas fa-user-check"></i> Asistencias</a>
+    </nav>
+    <div class="help-section">
+      <button class="help-btn" type="button"><i class="fas fa-question-circle"></i> Ayuda</button>
+    </div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+        <i class="fas fa-bars"></i> <!-- fix del icono -->
+      </button>
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button"><div class="user-avatar" id="userAvatar">DC</div><span id="userName">Docente</span><i class="fas fa-chevron-down"></i></button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+           <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <div id="toastStack" class="toast-stack"></div>
+
+    <section class="dashboard">
+      <h1 class="page-title"><i class="fas fa-user-check"></i> Registrar asistencia</h1>
+
+      <!-- Empty state -->
+      <div class="announcements-section" th:if="${#lists.isEmpty(materias)}" style="text-align:center">
+        <div class="section-title" style="justify-content:center">
+          <i class="fas fa-info-circle"></i> No tienes materias asignadas
+        </div>
+        <p class="muted">Solicita al coordinador que te asigne materias para registrar asistencia.</p>
+      </div>
+
+      <!-- Grid -->
+      <div class="modules-grid" th:if="${!#lists.isEmpty(materias)}">
+        <div class="card" th:each="m : ${materias}">
+          <div class="title" th:text="${m.nombre}">Nombre materia</div>
+          <div class="muted" th:if="${m.codigo}">
+            Código: <span th:text="${m.codigo}">COD</span>
+          </div>
+          <div class="actions">
+            <a class="btn-primary" th:href="@{|/dashboard/docente/asistencias/${m.idMateria}|}">
+              <i class="fas fa-clipboard-check"></i> Abrir pase
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const menuToggle=document.getElementById('menuToggle'),sidebar=document.getElementById('sidebar'),mainContent=document.getElementById('mainContent');
+    menuToggle?.addEventListener('click',()=>{sidebar.classList.toggle('hidden');mainContent.classList.toggle('expanded');});
+    const userInfo=document.getElementById('userInfo'),userDropdown=document.getElementById('userDropdown');
+    userInfo?.addEventListener('click',(e)=>{e.stopPropagation();userDropdown.classList.toggle('show');});
+    document.addEventListener('click',(e)=>{if(!userDropdown.contains(e.target)&&!userInfo.contains(e.target))userDropdown.classList.remove('show');});
+    (function(){const n=sessionStorage.getItem('nombreUsuario')||'Docente';document.getElementById('userName').textContent=n;document.getElementById('userAvatar').textContent=(n||'').split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'DC';})();
+    (function(){const rol=(sessionStorage.getItem('rol')||'').toLowerCase();if(rol!=='docente'){alert('Acceso no autorizado.');location.href='/login';}})();
+    function handleResize(){if(window.innerWidth<=768){sidebar.classList.add('hidden');mainContent.classList.add('expanded');}else{sidebar.classList.remove('hidden');mainContent.classList.remove('expanded');}}
+    handleResize();window.addEventListener('resize',handleResize);
+  </script>
+</body>
+</html>

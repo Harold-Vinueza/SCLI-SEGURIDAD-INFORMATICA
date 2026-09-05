@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:http="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Asistencia - Estudiante | SGIL</title>
+
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+    <link rel="stylesheet"
+          th:href="@{/css/admin.css(v=${#dates.createNow().time})}"
+          href="/css/admin.css" />
+
+    <style>
+        .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px}
+        .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:8px 12px;background:#fff;cursor:pointer;text-decoration:none}
+        .btn-secondary{background:#E5E7EB;color:#111;border:1px solid #D1D5DB}
+        .btn-secondary:hover{background:#DDE1E6}
+
+        table.asis{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+        .asis thead th{background:#F3F4F6;text-align:left;padding:10px;font-weight:600}
+        .asis tbody td{padding:10px;border-top:1px solid #F1F5F9;vertical-align:top}
+
+        .materia{font-weight:700;text-transform:uppercase}
+        .docente{color:#6b7280;font-size:.9rem;margin-top:2px}
+        .chips{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+        .chip{display:inline-flex;gap:6px;align-items:center;font-size:.8rem;padding:3px 7px;border-radius:999px;border:1px solid #e5e7eb;background:#F9FAFB}
+
+        .pct-box{min-width:120px}
+        .pct{font-weight:700}
+        .bar{position:relative;height:8px;background:#F1F5F9;border-radius:999px;margin-top:6px;overflow:hidden}
+        .bar>span{position:absolute;top:0;left:0;bottom:0;background:#10B981}
+
+        .marks{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(16px,16px);gap:6px;overflow-x:auto;padding-bottom:4px}
+        .mk{display:flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;font-size:.8rem;line-height:1;user-select:none;cursor:pointer}
+        .mk-p{color:#059669}
+        .mk-f{color:#ef4444}
+        .mk-j{color:#D97706}
+        .mk-n{color:#94a3b8}
+
+        @media print{
+            .sidebar,.header{display:none}
+            .main-content{padding:0}
+            .mk{border:1px solid #cbd5e1}
+        }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+        <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+        <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+        <a class="nav-item" th:href="@{/dashboard/estudiante}"><i class="fas fa-home"></i> Inicio</a>
+        <a class="nav-item" th:href="@{/estudiante/horarios}"><i class="fas fa-calendar-alt"></i> Mis horarios</a>
+        <a class="nav-item active" th:href="@{/dashboard/estudiante/asistencia}"><i class="fas fa-user-check"></i> Asistencia</a>
+        <a class="nav-item" th:href="@{/dashboard/estudiante/anuncios}"><i class="fas fa-bullhorn"></i> Anuncios</a>
+    </nav>
+    <div class="help-section">
+        <button class="help-btn" type="button" onclick="alert('Consulta tus horarios y revisa tu asistencia.')">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </div>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <header class="header">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="user-section">
+            <button class="user-info" id="userInfo" type="button" aria-haspopup="true" aria-expanded="false">
+                <div class="user-avatar" id="userAvatar">ES</div>
+                <span id="userName">Estudiante</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/estudiante/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+                <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/estudiante/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+                <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard">
+        <h1 class="page-title"><i class="fas fa-user-check"></i> Asistencia</h1>
+
+        <div class="card" style="margin-bottom:12px">
+            <div style="margin-bottom:8px;color:#374151">
+                <b>Estudiante:</b>
+                <span th:if="${cabecera != null}" th:text="${cabecera.nombre}">NOMBRE APELLIDO</span>
+                <span th:if="${cabecera == null}" th:text="${session.nombreUsuario != null ? session.nombreUsuario : '(sin nombre)'}">NOMBRE APELLIDO</span>
+                <span th:if="${cabecera != null and cabecera.programa != null}" th:text="' - ' + ${cabecera.programa}"></span>
+                <span th:if="${cabecera != null and cabecera.facultad != null}" th:text="' - ' + ${cabecera.facultad}"></span>
+                <span th:if="${cabecera != null and cabecera.periodo != null}" th:text="' - ' + ${cabecera.periodo}"></span>
+            </div>
+            <div>
+                <button class="btn btn-secondary" type="button" onclick="window.print()">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+            </div>
+        </div>
+
+        <div th:if="${error}" class="vista-anuncio" th:text="${error}" style="color:#E95F01;"></div>
+
+        <div class="card" style="overflow:auto">
+            <table class="asis">
+                <thead>
+                <tr>
+                    <th style="width:45%">Materia</th>
+                    <th style="width:10%">% Asist</th>
+                    <th>Clases</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${items}" th:if="${items != null}">
+                    <td>
+                        <div class="materia" th:text="${item.materia}">MATERIA – [NIVEL]</div>
+                        <div class="docente" th:text="${item.docente}">DOCENTE</div>
+                        <div class="chips">
+                            <span class="chip">Total: <b th:text="${item.total}">0</b></span>
+                            <span class="chip">Presentes: <b th:text="${item.presentes}">0</b></span>
+                            <span class="chip">Faltas: <b th:text="${item.faltas}">0</b></span>
+                        </div>
+                    </td>
+                    <td class="pct-box">
+                        <div class="pct" th:text="${item.porcentaje + '%'}">0%</div>
+                        <div class="bar"><span th:style="'width:'+ ${item.porcentaje} + '%'"></span></div>
+                    </td>
+                    <td>
+                        <div class="marks">
+                            <!-- Cada marca viene del controller con code + tooltip -->
+                            <span th:each="s : ${item.sesiones}"
+                                  th:class="'mk ' + (${s.code}=='P'?'mk-p':(${s.code}=='F'?'mk-f':(${s.code}=='J'?'mk-j':'mk-n')))"
+                                  th:attr="title=${s.tooltip}">
+                                <span th:text="${s.code}=='P'?'✓':(${s.code}=='F'?'✗':(${s.code}=='J'?'J':'•'))">✓</span>
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+                <tr th:if="${(items != null and #lists.isEmpty(items)) or (items == null and #lists.isEmpty(asistencias))}">
+                    <td colspan="3" style="color:#777">No hay registros para mostrar.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script th:inline="javascript">
+    const _nombre = /*[[${session.nombreUsuario}]]*/ null;
+    const _rol    = /*[['' + ${session.rol}]]*/ null;
+    if (_nombre) sessionStorage.setItem('nombreUsuario', _nombre);
+    if (_rol)    sessionStorage.setItem('rol', _rol);
+</script>
+
+<script>
+    const menuToggle   = document.getElementById('menuToggle');
+    const sidebar      = document.getElementById('sidebar');
+    const mainContent  = document.getElementById('mainContent');
+    const userInfo     = document.getElementById('userInfo');
+    const userDropdown = document.getElementById('userDropdown');
+    const userName     = document.getElementById('userName');
+    const userAvatar   = document.getElementById('userAvatar');
+    const logoutBtn    = document.getElementById('logoutBtn');
+
+    const ini = n => (n||'').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'ES';
+
+    menuToggle?.addEventListener('click', ()=>{
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
+
+    userInfo?.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        userDropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', (e)=>{
+        if(!userDropdown.contains(e.target) && !userInfo.contains(e.target)){
+            userDropdown.classList.remove('show');
+        }
+    });
+
+    (function(){
+        const n = sessionStorage.getItem('nombreUsuario') || 'Estudiante';
+        userName.textContent = n;
+        userAvatar.textContent = ini(n);
+    })();
+
+    (function(){
+        const rol=(sessionStorage.getItem('rol')||'').toLowerCase();
+        if(rol && rol!=='estudiante'){ alert('Acceso no autorizado.'); location.href='/login'; }
+    })();
+
+    logoutBtn?.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        try{ await fetch('/logout',{method:'GET',credentials:'include'})}catch(_){}
+        sessionStorage.clear(); location.href='/login';
+    });
+
+    function handleResize(){
+        if (window.innerWidth <= 768) {
+            sidebar.classList.add('hidden');
+            mainContent.classList.add('expanded');
+        } else {
+            sidebar.classList.remove('hidden');
+            mainContent.classList.remove('expanded');
+        }
+    }
+    handleResize(); window.addEventListener('resize', handleResize);
+</script>
+</body>
+</html>

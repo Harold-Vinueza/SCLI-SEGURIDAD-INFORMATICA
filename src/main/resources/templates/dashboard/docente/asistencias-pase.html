@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pase de lista - SGIL</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=${#dates.createNow().time})}" href="/css/admin.css" />
+  <style>
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  /* Botones unificados para <a> y <button> */
+  .btn,.btn-primary,.btn-danger{
+    display:inline-flex;align-items:center;gap:8px;
+    border:1px solid #e5e7eb;border-radius:10px;
+    padding:8px 12px;text-decoration:none;cursor:pointer;
+    font:inherit; line-height:1; user-select:none;
+  }
+  .btn{background:#fff;color:#111;border-color:#e5e7eb}
+  .btn-primary{background:#10b981;border-color:#10b981;color:#fff !important}
+  .btn-danger{background:#ef4444;border-color:#ef4444;color:#fff !important}
+  .btn i{font-size:.95rem}
+
+  table.table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff}
+  table.table th,table.table td{padding:10px;border-bottom:1px solid #f3f4f6}
+  table.table thead th{background:#f9fafb;text-align:left}
+
+  /* Check más visible (soporta navegadores modernos) */
+  input[type=checkbox]{width:18px;height:18px;accent-color:#10b981;cursor:pointer}
+</style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-section">
+      <div class="logo"><i class="fas fa-chalkboard-teacher"></i></div>
+      <div class="logo-text">Sistema de Control<br/>de Laboratorios</div>
+    </div>
+    <nav class="nav-menu">
+      <a class="nav-item" th:href="@{/dashboard/docente}"><i class="fas fa-home"></i> Inicio</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/reservas}"><i class="fas fa-file-alt"></i> Mis Reservas</a>
+      <a class="nav-item" th:href="@{/dashboard/docente/horarios}"><i class="fas fa-calendar-alt"></i> Mis Horarios</a>
+      <a class="nav-item active" th:href="@{/dashboard/docente/asistencias}"><i class="fas fa-user-check"></i> Asistencias</a>
+    </nav>
+    <div class="help-section"><button class="help-btn" type="button"><i class="fas fa-question-circle"></i> Ayuda</button></div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content" id="mainContent">
+    <header class="header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir/cerrar menú"><i class="fas fa-bars"></i></button>
+      <div class="user-section">
+        <button class="user-info" id="userInfo" type="button"><div class="user-avatar" id="userAvatar">DC</div><span id="userName">Docente</span><i class="fas fa-chevron-down"></i></button>
+        <div class="user-dropdown" id="userDropdown" role="menu" aria-hidden="true">
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/perfil}"><i class="fas fa-user"></i> Mi perfil</a>
+          <a class="dropdown-item" role="menuitem" th:href="@{/dashboard/docente/cambio-clave}"><i class="fas fa-key"></i> Cambio de clave</a>
+           <a class="dropdown-item logout" id="logoutBtn" role="menuitem" href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenedor de toasts -->
+    <div id="toastStack" class="toast-stack"></div>
+
+    <section class="dashboard">
+      <h1 class="page-title">
+        <i class="fas fa-clipboard-check"></i>
+        <span th:text="${vm.nombreMateria}">Materia</span>
+      </h1>
+
+      <!-- Filtros y acciones -->
+      <div class="toolbar">
+        <label>Fecha:
+          <input type="date" id="fecha" th:value="${vm.fechaClase}">
+        </label>
+        <button class="btn btn-primary" id="irFecha"><i class="fas fa-calendar-day"></i> Ir</button>
+        <span class="muted">Docente: <b th:text="${vm.nombreDocente}">-</b></span>
+        <span class="muted">Laboratorio: <b th:text="${vm.nombreLaboratorio}">-</b></span>
+        <a class="btn btn-primary" th:href="@{|/dashboard/docente/asistencias/${vm.idRegistro}/pdf|}" target="_blank">
+        <i class="fas fa-file-pdf"></i> Descargar PDF
+        </a>
+      </div>
+      
+
+      <form th:action="@{'/dashboard/docente/asistencias/' + ${vm.idRegistro}}" method="post">
+  <!-- redundante/útil para debug -->
+  <input type="hidden" name="idRegistro" th:value="${vm.idRegistro}" />
+
+  <input type="hidden" name="fecha" th:value="${vm.fechaClase}">
+  <input type="hidden" name="idMateria" th:value="${vm.idMateria}">
+
+  <div class="toolbar" style="margin-top:0;">
+    <label><input type="checkbox" id="marcarTodos"> Marcar todos</label>
+    <button class="btn-primary" type="submit"><i class="fas fa-save"></i> Guardar cambios</button>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th style="width:60px">#</th>
+        <th>Apellidos</th>
+        <th>Nombres</th>
+        <th style="width:140px">Presente</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="row, i : ${vm.filas}">
+        <td th:text="${i.count}">1</td>
+        <td th:text="${row.apellidos}">Apellidos</td>
+        <td th:text="${row.nombres}">Nombres</td>
+        <td>
+          <label style="display:flex;gap:8px;align-items:center">
+            <!-- OPCIONAL para que siempre llegue algo: -->
+            <input type="hidden" th:name="${'present[' + row.idEstudiante + ']'}" value="0"/>
+            <input type="checkbox"
+                   th:name="${'present[' + row.idEstudiante + ']'}"
+                   value="1"
+                   th:checked="${row.presente}">
+            <span>Presente</span>
+          </label>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="toolbar" style="justify-content:flex-end">
+    <button class="btn-primary" type="submit"><i class="fas fa-save"></i> Guardar cambios</button>
+    <a class="btn btn-danger" th:href="@{/dashboard/docente/asistencias}">
+      <i class="fas fa-times"></i> Cerrar
+    </a>
+  </div>
+</form>
+    </section>
+  </main>
+
+  <script>
+  const menuToggle = document.getElementById('menuToggle'),
+        sidebar    = document.getElementById('sidebar'),
+        mainContent= document.getElementById('mainContent');
+
+  menuToggle?.addEventListener('click', ()=>{
+    sidebar?.classList.toggle('hidden');
+    mainContent?.classList.toggle('expanded');
+  });
+
+  const userInfo = document.getElementById('userInfo'),
+        userDropdown = document.getElementById('userDropdown');
+
+  userInfo?.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    userDropdown?.classList.toggle('show');
+  });
+
+  // 👇 Evita error si no existen los elementos
+  document.addEventListener('click',(e)=>{
+    if (userDropdown && userInfo && !userDropdown.contains(e.target) && !userInfo.contains(e.target)) {
+      userDropdown.classList.remove('show');
+    }
+  });
+
+  (function(){
+    const n = sessionStorage.getItem('nombreUsuario') || 'Docente';
+    const userNameEl   = document.getElementById('userName');
+    const userAvatarEl = document.getElementById('userAvatar');
+    if (userNameEl)   userNameEl.textContent = n;
+    if (userAvatarEl) userAvatarEl.textContent =
+      (n||'').split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase() || 'DC';
+  })();
+
+  (function(){
+    const rol = (sessionStorage.getItem('rol')||'').toLowerCase();
+    if (rol !== 'docente') { alert('Acceso no autorizado.'); location.href='/login'; }
+  })();
+
+  function handleResize(){
+    if (!sidebar || !mainContent) return;
+    if (window.innerWidth <= 768){
+      sidebar.classList.add('hidden');
+      mainContent.classList.add('expanded');
+    } else {
+      sidebar.classList.remove('hidden');
+      mainContent.classList.remove('expanded');
+    }
+  }
+  handleResize();
+  window.addEventListener('resize', handleResize);
+
+  /* ==== Asistencias ==== */
+  document.addEventListener('DOMContentLoaded', function () {
+    const master = document.getElementById('marcarTodos');
+    const filaChecks = () => Array.from(document.querySelectorAll('input[type="checkbox"][name^="present["]'));
+
+    // Marcar/Desmarcar todos
+    if (master) {
+      master.addEventListener('change', () => {
+        filaChecks().forEach(cb => cb.checked = master.checked);
+      });
+
+      // Al cargar, si todas están marcadas, refleja en el maestro
+      const cbs = filaChecks();
+      if (cbs.length && cbs.every(cb => cb.checked)) master.checked = true;
+
+      // Si el usuario tilda/destilda alguna fila, sincroniza el maestro
+      document.addEventListener('change', (e)=>{
+        if (!(e.target instanceof HTMLInputElement)) return;
+        if (e.target.type === 'checkbox' && e.target.name && e.target.name.startsWith('present[')) {
+          const all = filaChecks();
+          master.checked = all.length > 0 && all.every(cb => cb.checked);
+        }
+      });
+    }
+
+    // Cambiar fecha → recargar manteniendo idMateria
+    const irBtn  = document.getElementById('irFecha');
+    const fechaI = document.getElementById('fecha');
+    irBtn?.addEventListener('click', ()=>{
+      if (!fechaI) return;
+      const url = new URL(window.location);
+      url.searchParams.set('fecha', fechaI.value);
+      window.location = url.toString();
+    });
+  });
+</script>
+
+<!-- Toasts (usa FlashAttribute 'ok' y opcional 'err') -->
+<script th:inline="javascript">
+  function showToast(text, type){
+    const stack = document.getElementById('toastStack'); if(!stack) return;
+    const el = document.createElement('div');
+    el.className = 'toast ' + (type==='error' ? 'toast-error' : 'toast-success');
+    el.innerHTML = `
+      <div>
+        <div class="title">${type==='error' ? 'Error' : 'Éxito'}</div>
+        <div>${text}</div>
+      </div>
+      <button class="close" aria-label="Cerrar" onclick="this.closest('.toast').remove()">&times;</button>
+    `;
+    stack.appendChild(el);
+    setTimeout(()=>{ el.style.animation='toast-out .2s ease forwards'; setTimeout(()=>el.remove(),180); }, 3500);
+  }
+  const _ok  = /*[[${ok}]]*/ null;
+  const _err = /*[[${err}]]*/ null;
+  if(_ok){  showToast(_ok,'success'); }
+  if(_err){ showToast(_err,'error'); }
+</script>
+</body>
+</html>
