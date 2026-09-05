@@ -2,12 +2,14 @@ package com.uteq.SCLI.service;
 
 import com.uteq.SCLI.dto.UserSession;
 import com.uteq.SCLI.exception.CredencialesInvalidasException;
+import com.uteq.SCLI.exception.CuentaBloqueadaException;
 import com.uteq.SCLI.repository.AuthRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 
 @Service
 @RequiredArgsConstructor
@@ -18,16 +20,40 @@ public class AuthService {
     private final UserSession userSession;
 
     /** Overload que acepta ip/ua y obtiene session_id en una sola llamada auditada */
-    @Transactional
-    public UserSession autenticar(String username, String password, String ip, String ua) {
+        @Transactional(dontRollbackOn = {CredencialesInvalidasException.class, CuentaBloqueadaException.class})
+        public UserSession autenticar(String username, String password, String ip, String ua) {
         em.createNativeQuery("SELECT set_config('search_path', 'public,app', false)").getSingleResult();
         em.createNativeQuery("RESET ROLE").executeUpdate();
         em.createNativeQuery("SELECT set_config('app.current_docente_id', '', true)").getSingleResult();
         em.createNativeQuery("SELECT set_config('app.current_estudiante_id', '', true)").getSingleResult();
 
         // ✅ UNA sola invocación a fn_login_audit (ya crea evento_login y devuelve session_id)
+        /* Antes
         AuthRepository.LoginResultView r = authRepository.loginAudit(username, password, ip, ua);
         if (r == null || r.getOk() == null || !r.getOk()) {
+            throw new CredencialesInvalidasException("Usuario o contraseña incorrectos");
+        }*/
+
+        // nuevo
+        // ✅ Verificar si la cuenta está bloqueada ANTES de intentar autenticar
+                // ✅ Verificar si la cuenta está bloqueada ANTES de intentar autenticar
+        java.time.Instant bloqueadoHasta = authRepository.findBloqueadoHasta(username);
+        if (bloqueadoHasta != null && bloqueadoHasta.isAfter(java.time.Instant.now())) {
+            long minutos = java.time.Duration.between(java.time.Instant.now(), bloqueadoHasta).toMinutes() + 1;
+            throw new CuentaBloqueadaException(
+                    "Cuenta bloqueada temporalmente por múltiples intentos fallidos", minutos);
+        }
+
+        // ✅ UNA sola invocación a fn_login_audit (ya crea evento_login y devuelve session_id)
+        AuthRepository.LoginResultView r = authRepository.loginAudit(username, password, ip, ua);
+        if (r == null || r.getOk() == null || !r.getOk()) {
+            // Puede que este mismo intento haya activado el bloqueo (5to intento fallido)
+            java.time.Instant bloqueadoAhora = authRepository.findBloqueadoHasta(username);
+            if (bloqueadoAhora != null && bloqueadoAhora.isAfter(java.time.Instant.now())) {
+                long minutos = java.time.Duration.between(java.time.Instant.now(), bloqueadoAhora).toMinutes() + 1;
+                throw new CuentaBloqueadaException(
+                        "Cuenta bloqueada temporalmente por múltiples intentos fallidos", minutos);
+            }
             throw new CredencialesInvalidasException("Usuario o contraseña incorrectos");
         }
 

@@ -62,9 +62,24 @@
            
           </div>
 
-          <!-- Mensajes de error -->
+          <!-- Antes
+          Mensajes de error 
           <div class="error-msg" th:if="${param.error}">
             <span th:switch="${param.error[0]}">
+              <span th:case="'credenciales'">Usuario o contraseña incorrectos.</span>
+              <span th:case="'rol'">Tu rol no tiene acceso a esta aplicación.</span>
+              <span th:case="*">No se pudo iniciar sesión. Intenta nuevamente.</span>
+            </span>
+          </div>-->
+
+        <!-- Despues -->
+                   <!-- Mensajes de error -->
+          <div class="error-msg" th:if="${param.error}">
+            <span th:switch="${param.error[0]}">
+              <span th:case="'bloqueado'">
+                Cuenta bloqueada temporalmente por múltiples intentos fallidos.
+                Intenta de nuevo en <span th:text="${param.minutos != null ? param.minutos[0] : '15'}">15</span> minuto(s).
+              </span>
               <span th:case="'credenciales'">Usuario o contraseña incorrectos.</span>
               <span th:case="'rol'">Tu rol no tiene acceso a esta aplicación.</span>
               <span th:case="*">No se pudo iniciar sesión. Intenta nuevamente.</span>

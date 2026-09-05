@@ -27,4 +27,7 @@ public interface AuthRepository extends JpaRepository<Usuario, Integer> {
                                @Param("p") String password,
                                @Param("ip") String ip,
                                @Param("ua") String userAgent);
+                               
+        @Query(value = "select bloqueado_hasta from app.app_usuario where username = :u", nativeQuery = true)
+    java.time.Instant findBloqueadoHasta(@Param("u") String username);
 }

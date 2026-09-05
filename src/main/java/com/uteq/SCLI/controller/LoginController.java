@@ -2,6 +2,7 @@ package com.uteq.SCLI.controller;
 
 import com.uteq.SCLI.dto.UserSession;
 import com.uteq.SCLI.exception.CredencialesInvalidasException;
+import com.uteq.SCLI.exception.CuentaBloqueadaException;
 import com.uteq.SCLI.service.AuthService;
 import com.uteq.SCLI.service.PasswordService;
 import com.uteq.SCLI.session.SessionTracker;
@@ -158,6 +159,16 @@ public class LoginController {
             String rol = sessionInfo.getNombreRol();
             return "redirect:" + resolveDashboardByRole(rol);
 
+        /* Antes
+        } catch (CredencialesInvalidasException ex) {
+            log.warn("Login inválido para user={}", nombreUsuario);
+            return "redirect:/login?error=credenciales";
+        }*/
+
+        //despues
+                } catch (CuentaBloqueadaException ex) {
+            log.warn("Login bloqueado para user={}, minutos restantes={}", nombreUsuario, ex.getMinutosRestantes());
+            return "redirect:/login?error=bloqueado&minutos=" + ex.getMinutosRestantes();
         } catch (CredencialesInvalidasException ex) {
             log.warn("Login inválido para user={}", nombreUsuario);
             return "redirect:/login?error=credenciales";
