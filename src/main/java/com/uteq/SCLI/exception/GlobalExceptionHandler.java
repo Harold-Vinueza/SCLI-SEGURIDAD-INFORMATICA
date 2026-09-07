@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 // Permite interceptar excepciones desde cualquier @Controller o @RestController
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 // Para enviar datos a la vista Thymeleaf
 import org.springframework.ui.Model;
@@ -40,9 +41,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    // Maneja errores de acceso a vistas protegidas (rol incorrecto o sin sesión)
-    @ExceptionHandler(AccesoNoAutorizadoException.class)
-    public String manejarAccesoNoAutorizado(AccesoNoAutorizadoException ex, Model model) {
+        // Maneja errores de acceso a vistas protegidas (rol incorrecto o sin sesión)
+        @ExceptionHandler(AccesoNoAutorizadoException.class)
+        @ResponseStatus(HttpStatus.FORBIDDEN)
+        public String manejarAccesoNoAutorizado(AccesoNoAutorizadoException ex, Model model) {
         // Se pasa el mensaje de error a la vista como atributo
         model.addAttribute("error", ex.getMessage());
 

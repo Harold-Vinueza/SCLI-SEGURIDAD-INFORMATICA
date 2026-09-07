@@ -7,11 +7,30 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import com.uteq.SCLI.exception.AccesoNoAutorizadoException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Component
 public class SessionAuthInterceptor implements HandlerInterceptor {
 
     private final AuditJdbcPort auditPort;
+    
+    // Roles permitidos por prefijo de URL. Se evalúa en orden; el primer prefijo que
+    // coincida con la ruta define qué roles pueden pasar.
+    private static final List<Map.Entry<String, Set<String>>> REGLAS_RBAC = List.of(
+        Map.entry("/dashboard/admin", Set.of("admin_master", "admin_piso", "admin", "administrador")),
+        Map.entry("/admin/",          Set.of("admin_master", "admin_piso", "admin", "administrador")),
+        Map.entry("/api/admin/",      Set.of("admin_master", "admin_piso", "admin", "administrador")),
+        Map.entry("/dashboard/coordinador", Set.of("coordinador")),
+        Map.entry("/api/coordinador",       Set.of("coordinador")),
+        Map.entry("/dashboard/docente", Set.of("docente")),
+        Map.entry("/docente/",          Set.of("docente")),
+        Map.entry("/api/docentes",      Set.of("docente")),
+        Map.entry("/dashboard/estudiante", Set.of("estudiante")),
+        Map.entry("/estudiante",          Set.of("estudiante"))
+    );
 
     public SessionAuthInterceptor(AuditJdbcPort auditPort) {
         this.auditPort = auditPort;
@@ -38,9 +57,17 @@ public class SessionAuthInterceptor implements HandlerInterceptor {
         HttpSession session = req.getSession(false);
         UserSession us = (session == null) ? null : (UserSession) session.getAttribute("userSession");
 
-        if (us == null) {
+                if (us == null) {
             res.sendRedirect("/login?expired");
             return false;
+        }
+
+        String rolActual = us.getNombreRol() == null ? "" : us.getNombreRol().trim().toLowerCase();
+        for (Map.Entry<String, Set<String>> regla : REGLAS_RBAC) {
+            if (path.startsWith(regla.getKey()) && !regla.getValue().contains(rolActual)) {
+                throw new AccesoNoAutorizadoException(
+                    "Tu rol (" + rolActual + ") no tiene permiso para acceder a esta sección.");
+            }
         }
 
         try {
