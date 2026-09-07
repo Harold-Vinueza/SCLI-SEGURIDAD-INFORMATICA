@@ -81,7 +81,7 @@
                 <input id="pwd1" name="nueva" type="password" autocomplete="new-password" required>
                 <button class="icon-btn" type="button" data-toggle="#pwd1" title="Mostrar/Ocultar"><i class="fas fa-eye"></i></button>
               </div>
-              <div class="rules">Mínimo 8 caracteres, al menos 1 mayúscula, 1 minúscula y 1 número.</div>
+              <div class="rules">Mínimo 10 caracteres, con mayúscula, minúscula, número y símbolo (ej. #, @, !).</div>
             </div>
 
             <div class="field">
@@ -136,7 +136,7 @@
 
     const pwd0=document.getElementById('pwd0'), pwd1=document.getElementById('pwd1'), pwd2=document.getElementById('pwd2');
     const errMatch=document.getElementById('errMatch'), btnSubmit=document.getElementById('btnSubmit'), liveHint=document.getElementById('liveHint'), form=document.getElementById('formClave');
-    function strongEnough(v){ if(!v||v.length<8) return false; if(!/[A-Z]/.test(v)) return false; if(!/[a-z]/.test(v)) return false; if(!/[0-9]/.test(v)) return false; return true; }
+    function strongEnough(v){ if(!v||v.length<10) return false; if(!/[A-Z]/.test(v)) return false; if(!/[a-z]/.test(v)) return false; if(!/[0-9]/.test(v)) return false; if(!/[^A-Za-z0-9]/.test(v)) return false; return true; }
     function validate(){
       const sOk=strongEnough(pwd1.value); const match=(pwd1.value&&pwd2.value&&pwd1.value===pwd2.value);
       errMatch.style.display = match ? 'none' : (pwd2.value ? 'block' : 'none');

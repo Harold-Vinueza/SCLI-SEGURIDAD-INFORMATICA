@@ -17,7 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(sessionAuthInterceptor)
                 .addPathPatterns("/**")
                 // ¡importante!: NO interceptar recursos públicos/estáticos
-                .excludePathPatterns(
+                                .excludePathPatterns(
                         "/login",
                         "/logout",
                         "/error",
@@ -28,6 +28,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/images/**",
                         "/webjars/**",
                         "/static/**",
+                        "/recuperar-clave",
+                        "/reset-clave",
                           "/cambiar-clave"   
                 );
     }

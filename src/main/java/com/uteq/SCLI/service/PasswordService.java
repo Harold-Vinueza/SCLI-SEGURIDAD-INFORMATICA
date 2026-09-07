@@ -3,6 +3,7 @@ package com.uteq.SCLI.service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,9 @@ public class PasswordService {
 
   @PersistenceContext
   private EntityManager em;
+  
+  private static final Pattern POLITICA_CLAVE = Pattern.compile(
+      "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{10,}$");
 
   @Transactional(readOnly = true)
   public boolean mustChange(Integer idUsuario) {
@@ -22,8 +26,12 @@ public class PasswordService {
     return Boolean.parseBoolean(r.toString());
   }
 
-  @Transactional
+    @Transactional
   public void cambiar(Integer idUsuario, String actual, String nueva) {
+    if (!POLITICA_CLAVE.matcher(nueva).matches()) {
+      throw new IllegalArgumentException(
+          "La contraseña debe tener al menos 10 caracteres, incluyendo mayúscula, minúscula, número y símbolo.");
+    }
     Object raw = em.createNativeQuery("SELECT * FROM app.fn_usuario_cambiar_clave(?,?,?)")
         .setParameter(1, idUsuario)
         .setParameter(2, actual)

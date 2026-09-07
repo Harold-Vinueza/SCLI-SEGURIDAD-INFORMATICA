@@ -54,8 +54,38 @@ private String defaultFrom;
 
         helper.setText(html, true);
         mailSender.send(message);
-
         // IMPORTANTE: nunca hagas log de la contraseña
         log.info("Credenciales enviadas a {}", to);
+    }
+
+    public void enviarTokenRecuperacion(String to, String nombrePersona, String token) throws Exception {
+        if (!mailEnabled) {
+            log.warn("Email deshabilitado por configuración; no se envía token de recuperación a {}", to);
+            return;
+        }
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
+        helper.setFrom(defaultFrom);
+        helper.setTo(to);
+        helper.setSubject("Recuperación de contraseña - SCLI");
+
+        String link = "http://localhost:8081/reset-clave?token=" + token;
+
+        String html = """
+            <div style="font-family:Arial,Helvetica,sans-serif">
+              <h2>Recuperación de contraseña</h2>
+              <p>Hola <b>%s</b>, recibimos una solicitud para restablecer tu contraseña.</p>
+              <p><a href="%s">Haz clic aquí para crear una nueva contraseña</a></p>
+              <p>Este enlace es válido por 30 minutos y solo puede usarse una vez.</p>
+              <hr>
+              <small>Si no solicitaste esto, ignora este correo; tu contraseña actual seguirá funcionando.</small>
+            </div>
+            """.formatted(nombrePersona != null ? nombrePersona : "Usuario", link);
+
+        helper.setText(html, true);
+        mailSender.send(message);
+
+        // IMPORTANTE: nunca hagas log del token completo
+        log.info("Token de recuperación enviado a {}", to);
     }
 }

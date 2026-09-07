@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Nueva contraseña - SGIL</title>
+  <link rel="stylesheet" th:href="@{/css/login.css}"/>
+</head>
+<body>
+  <div class="login-layout">
+    <section class="login-panel">
+      <div class="login-card">
+        <h2>Crear nueva contraseña</h2>
+
+        <div th:if="${error}" class="error-msg" th:text="${error}"></div>
+
+        <form method="post" th:action="@{/reset-clave}">
+          <input type="hidden" name="token" th:value="${token}"/>
+
+          <label>Nueva contraseña</label>
+          <input type="password" name="nueva" required/>
+          <div class="hint">Mínimo 10 caracteres, con mayúscula, minúscula, número y símbolo.</div>
+
+          <label>Repetir contraseña</label>
+          <input type="password" name="repetir" required/>
+
+          <button type="submit">Guardar nueva contraseña</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

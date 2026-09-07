@@ -30,4 +30,41 @@ public interface AuthRepository extends JpaRepository<Usuario, Integer> {
                                
         @Query(value = "select bloqueado_hasta from app.app_usuario where username = :u", nativeQuery = true)
     java.time.Instant findBloqueadoHasta(@Param("u") String username);
+
+    
+    interface RecuperacionUsuarioView {
+        Integer getId_usuario();
+        String  getCorreo();
+        String  getNombres();
+    }
+
+    @Query(value = "SELECT au.id_usuario as id_usuario, p.correo as correo, p.nombres as nombres " +
+                   "FROM app.app_usuario au JOIN persona p ON p.id_persona = au.id_persona " +
+                   "WHERE au.username = :identificador OR p.correo = :identificador " +
+                   "AND au.activo = true", nativeQuery = true)
+    RecuperacionUsuarioView buscarParaRecuperacion(@Param("identificador") String identificador);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "INSERT INTO app.token_recuperacion (id_usuario, token, expira_en) VALUES (:idUsuario, :token, :expiraEn)", nativeQuery = true)
+    void guardarTokenRecuperacion(@Param("idUsuario") Integer idUsuario,
+                                  @Param("token") String token,
+                                  @Param("expiraEn") java.time.Instant expiraEn);
+
+    interface TokenRecuperacionView {
+        Integer getId_usuario();
+        java.time.Instant getExpira_en();
+        Boolean getUsado();
+    }
+
+    @Query(value = "SELECT id_usuario, expira_en, usado FROM app.token_recuperacion WHERE token = :token", nativeQuery = true)
+    TokenRecuperacionView buscarToken(@Param("token") String token);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE app.token_recuperacion SET usado = true WHERE token = :token", nativeQuery = true)
+    void marcarTokenUsado(@Param("token") String token);
+
+    
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE app.app_usuario SET hash_password = crypt(:nueva, gen_salt('bf')), intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_usuario = :idUsuario", nativeQuery = true)
+    void actualizarClaveDirecta(@Param("idUsuario") Integer idUsuario, @Param("nueva") String nueva);
 }

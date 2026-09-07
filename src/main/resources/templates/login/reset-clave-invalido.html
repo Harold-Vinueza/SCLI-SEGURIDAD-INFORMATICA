@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Enlace inválido - SGIL</title>
+  <link rel="stylesheet" th:href="@{/css/login.css}"/>
+</head>
+<body>
+  <div class="login-layout">
+    <section class="login-panel">
+      <div class="login-card">
+        <h2>Enlace no válido</h2>
+        <p th:text="${error}"></p>
+        <p><a th:href="@{/recuperar-clave}">Solicitar un nuevo enlace</a></p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
