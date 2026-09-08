@@ -29,3 +29,10 @@ sonar-project.properties
 
 # Subidas o recursos que no quieras versionar
 uploads/
+
+
+# Logs de exportación SIEM (datos generados en runtime, no código)
+logs/
+
+# Configuración de entorno
+.env

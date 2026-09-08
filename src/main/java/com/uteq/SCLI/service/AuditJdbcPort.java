@@ -64,7 +64,17 @@ public class AuditJdbcPort {
         );
     }
 
-    public void endSession(String sessionId, String how){
+       public void endSession(String sessionId, String how){
         jdbc.queryForList("select audit.end_session(CAST(? as uuid), ?)", sessionId, how);
+    }
+
+    /** Registra un intento de acceso bloqueado por RBAC (rol sin permiso para la ruta) */
+    public void registrarAccesoDenegado(Integer idUsuario, String username, String nombreRol,
+                                        String ruta, String ip, String motivo) {
+        jdbc.update(
+            "INSERT INTO app.evento_acceso_denegado (id_usuario, username, nombre_rol, ruta, ip, motivo) " +
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            idUsuario, username, nombreRol, ruta, ip, motivo
+        );
     }
 }

@@ -94,6 +94,13 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- TSpring Boot sí lea un .env -->
+  <dependency>
+    <groupId>me.paulschwarz</groupId>
+    <artifactId>spring-dotenv</artifactId>
+    <version>4.0.0</version>
+</dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -101,6 +108,8 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+ 
 
   <build>
     <plugins>

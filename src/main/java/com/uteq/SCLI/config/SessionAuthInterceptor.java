@@ -62,9 +62,12 @@ public class SessionAuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        String rolActual = us.getNombreRol() == null ? "" : us.getNombreRol().trim().toLowerCase();
+                String rolActual = us.getNombreRol() == null ? "" : us.getNombreRol().trim().toLowerCase();
         for (Map.Entry<String, Set<String>> regla : REGLAS_RBAC) {
             if (path.startsWith(regla.getKey()) && !regla.getValue().contains(rolActual)) {
+                String motivo = "Rol '" + rolActual + "' sin permiso para prefijo '" + regla.getKey() + "'";
+                auditPort.registrarAccesoDenegado(
+                    us.getIdUsuario(), us.getUsername(), us.getNombreRol(), path, req.getRemoteAddr(), motivo);
                 throw new AccesoNoAutorizadoException(
                     "Tu rol (" + rolActual + ") no tiene permiso para acceder a esta sección.");
             }
