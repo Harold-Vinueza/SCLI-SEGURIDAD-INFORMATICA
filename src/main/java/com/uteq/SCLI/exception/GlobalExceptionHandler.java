@@ -28,6 +28,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
     }
 
+
+    // Recursos estáticos faltantes (ej. favicon.ico) → 404 simple, no un error 500 alarmante
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Void> manejarRecursoNoEncontrado(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.notFound().build();
+    }
+
     // Captura cualquier excepción no controlada que no tenga manejador específico
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> manejarExcepcionesGenerales(Exception ex) {

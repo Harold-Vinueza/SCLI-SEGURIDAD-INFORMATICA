@@ -2,13 +2,18 @@
 package com.uteq.SCLI.repository;
 
 import com.uteq.SCLI.dto.ProfileDTO;
+import com.uteq.SCLI.service.CryptoService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class ProfileRepository {
   private final JdbcTemplate jdbc;
-  public ProfileRepository(JdbcTemplate jdbc){ this.jdbc = jdbc; }
+  private final CryptoService crypto;
+  public ProfileRepository(JdbcTemplate jdbc, CryptoService crypto){
+    this.jdbc = jdbc;
+    this.crypto = crypto;
+  }
 
   public ProfileDTO findByIdPersona(int idPersona){
     String sql = """
@@ -25,7 +30,7 @@ public class ProfileRepository {
       x.setNombres(rs.getString("nombres"));
       x.setApellidos(rs.getString("apellidos"));
       x.setCorreo(rs.getString("correo"));
-      x.setTelefono(rs.getString("telefono"));
+      x.setTelefono(crypto.desencriptar(rs.getString("telefono"))); // Desencriptar antes de devolver
       x.setFotoUrl(rs.getString("foto_url"));
       x.setTituloAcademico(rs.getString("titulo_academico"));
       x.setDepartamento(rs.getString("departamento"));
@@ -40,7 +45,7 @@ public class ProfileRepository {
        WHERE id_persona=?
       """;
     jdbc.update(sql, d.getNombres(), d.getApellidos(), d.getCorreo(),
-                d.getTelefono(), d.getFotoUrl(), d.getIdPersona());
+                crypto.encriptar(d.getTelefono()), d.getFotoUrl(), d.getIdPersona());
   }
 
   public void updateDocente(ProfileDTO d){

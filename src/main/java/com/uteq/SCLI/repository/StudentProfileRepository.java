@@ -1,6 +1,7 @@
 package com.uteq.SCLI.repository;
 
 import com.uteq.SCLI.dto.StudentProfileDTO;
+import com.uteq.SCLI.service.CryptoService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -8,7 +9,11 @@ import org.springframework.stereotype.Repository;
 public class StudentProfileRepository {
 
     private final JdbcTemplate jdbc;
-    public StudentProfileRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final CryptoService crypto;
+    public StudentProfileRepository(JdbcTemplate jdbc, CryptoService crypto) {
+        this.jdbc = jdbc;
+        this.crypto = crypto;
+    }
 
     /** Obtiene perfil de estudiante por id_persona (join persona + estudiante + carrera). */
     public StudentProfileDTO findByIdPersona(int idPersona){
@@ -37,7 +42,7 @@ public class StudentProfileRepository {
             d.setNombres(rs.getString("nombres"));
             d.setApellidos(rs.getString("apellidos"));
             d.setCorreo(rs.getString("correo"));
-            d.setTelefono(rs.getString("telefono"));
+            d.setTelefono(crypto.desencriptar(rs.getString("telefono"))); // Desencriptar antes de devolver
             d.setFotoUrl(rs.getString("foto_url"));
             Object idEst = rs.getObject("id_estudiante");
             d.setIdEstudiante(idEst != null ? ((Number)idEst).intValue() : null);
@@ -62,7 +67,7 @@ public class StudentProfileRepository {
        WHERE id_persona = ?
       """;
         jdbc.update(sql,
-                d.getNombres(), d.getApellidos(), d.getCorreo(), d.getTelefono(), d.getFotoUrl(), d.getIdPersona());
+                d.getNombres(), d.getApellidos(), d.getCorreo(), crypto.encriptar(d.getTelefono()), d.getFotoUrl(), d.getIdPersona()); // Encriptar antes de guardar
     }
 
     /** Inserta/actualiza en estudiante usando UPSERT por (id_persona) UNIQUE. */

@@ -14,21 +14,26 @@ import java.util.List;
 public class ReporteFalloService {
     @Autowired private ReporteFalloRepository repo;
     @Autowired private EquipoRepository equipoRepo;
+    @Autowired private CryptoService crypto;
 
      public ReporteFallo crear(Integer idEquipo, String descripcion, Integer idDocente, Integer idAdminPiso){
         Equipo eq = equipoRepo.findById(idEquipo).orElseThrow(() -> new IllegalArgumentException("Equipo no encontrado"));
         ReporteFallo r = new ReporteFallo();
         r.setEquipo(eq);
-        r.setDescripcionFallo(descripcion);
+        r.setDescripcionFallo(crypto.encriptar(descripcion));
         r.setFechaReporte(LocalDate.now());
         r.setEstadoReporte("pendiente");
         r.setIdDocente(idDocente);
         r.setIdAdminPiso(idAdminPiso);
-        return repo.save(r);
+        ReporteFallo guardado = repo.save(r);
+        guardado.setDescripcionFallo(descripcion); // Devolvemos el objeto con el texto plano, no el cifrado
+        return guardado;
     }
 
      public List<ReporteFallo> listarPorEquipo(Integer idEquipo){
         Equipo eq = equipoRepo.findById(idEquipo).orElseThrow(() -> new IllegalArgumentException("Equipo no encontrado"));
-        return repo.findByEquipoOrderByFechaReporteDesc(eq);
+        List<ReporteFallo> reportes = repo.findByEquipoOrderByFechaReporteDesc(eq);
+        reportes.forEach(r -> r.setDescripcionFallo(crypto.desencriptar(r.getDescripcionFallo())));
+        return reportes;
     }
 }

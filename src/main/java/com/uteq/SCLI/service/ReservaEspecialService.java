@@ -11,22 +11,33 @@ import java.util.Optional;
 public class ReservaEspecialService {
 
     private final ReservaEspecialRepository repo;
+    private final CryptoService crypto;
 
-    public ReservaEspecialService(ReservaEspecialRepository repo) {
+    public ReservaEspecialService(ReservaEspecialRepository repo, CryptoService crypto) {
         this.repo = repo;
+        this.crypto = crypto;
     }
 
     public List<ReservaEspecial> listar() {
-        return repo.findAll();
+        List<ReservaEspecial> lista = repo.findAll();
+        lista.forEach(r -> r.setObservaciones(crypto.desencriptar(r.getObservaciones())));
+        return lista;
     }
 
     public Optional<ReservaEspecial> porId(Integer id) {
-        return repo.findById(id);
+        return repo.findById(id).map(r -> {
+            r.setObservaciones(crypto.desencriptar(r.getObservaciones()));
+            return r;
+        });
     }
 
     public ReservaEspecial guardar(ReservaEspecial r) {
         if (r.getPublicado() == null) r.setPublicado(false);
-        return repo.save(r);
+        String observacionesPlano = r.getObservaciones();
+        r.setObservaciones(crypto.encriptar(observacionesPlano));
+        ReservaEspecial guardado = repo.save(r);
+        guardado.setObservaciones(observacionesPlano); // Devuelve el objeto con el texto plano, no el cifrado
+        return guardado;
     }
 
     public void eliminar(Integer id) {
@@ -41,10 +52,14 @@ public class ReservaEspecialService {
     }
 
     public List<ReservaEspecial> publicadas() {
-        return repo.findByPublicadoTrueOrderByFechaInicioDesc();
+        List<ReservaEspecial> lista = repo.findByPublicadoTrueOrderByFechaInicioDesc();
+        lista.forEach(r -> r.setObservaciones(crypto.desencriptar(r.getObservaciones())));
+        return lista;
     }
 
     public List<ReservaEspecial> ultimas5Publicadas() {
-        return repo.findTop5ByPublicadoTrueOrderByFechaInicioDesc();
+        List<ReservaEspecial> lista = repo.findTop5ByPublicadoTrueOrderByFechaInicioDesc();
+        lista.forEach(r -> r.setObservaciones(crypto.desencriptar(r.getObservaciones())));
+        return lista;
     }
 }

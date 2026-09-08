@@ -87,7 +87,7 @@ public class DocenteApiController {
 
     /* ===== Crear solicitud ===== */
     @PostMapping("/solicitudes")
-    public ResponseEntity<Integer> crearSolicitud(@RequestBody CrearSolicitudRequest req) {
+        public ResponseEntity<Integer> crearSolicitud(@jakarta.validation.Valid @RequestBody CrearSolicitudRequest req) {
         Integer idDocente = requireDocenteId();
         // IMPORTANTE: Delegar al servicio que resuelve id_admin_piso y fechaUso
         Integer id = solicitudService.crearSolicitud(idDocente, req);
