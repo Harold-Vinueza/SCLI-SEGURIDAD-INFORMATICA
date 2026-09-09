@@ -18,6 +18,12 @@ public class AuthService {
     private final AuthRepository authRepository;
     @PersistenceContext private final EntityManager em;
     private final UserSession userSession;
+    
+    // Lista blanca de roles técnicos de PostgreSQL que esta app puede activar con SET ROLE.
+    // Evita concatenar directamente un valor no verificado en una sentencia SQL (CWE-89).
+    private static final java.util.Set<String> ROLES_BD_VALIDOS = java.util.Set.of(
+        "app_admin_master", "app_admin_piso", "app_docente", "app_estudiante", "app_coordinador"
+    );
 
     /** Overload que acepta ip/ua y obtiene session_id en una sola llamada auditada */
         @Transactional(dontRollbackOn = {CredencialesInvalidasException.class, CuentaBloqueadaException.class})
@@ -59,6 +65,9 @@ public class AuthService {
 
         try {
             if (r.getDb_role() != null && !r.getDb_role().isBlank()) {
+                if (!ROLES_BD_VALIDOS.contains(r.getDb_role())) {
+                    throw new IllegalStateException("Rol de base de datos no reconocido: " + r.getDb_role());
+                }
                 em.createNativeQuery("SET ROLE " + r.getDb_role()).executeUpdate();
 
                 if ("docente".equalsIgnoreCase(r.getNombre_rol())) {
